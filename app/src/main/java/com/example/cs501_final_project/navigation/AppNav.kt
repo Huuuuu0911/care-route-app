@@ -15,7 +15,7 @@ import com.example.cs501_final_project.ui.MapScreen
 import com.example.cs501_final_project.ui.ResultScreen
 import com.example.cs501_final_project.ui.TriageScreen
 
-// routes for navigation
+// app routes
 object Routes {
     const val HOME = "home"
     const val TRIAGE = "triage"
@@ -28,16 +28,22 @@ object Routes {
 fun AppNav() {
     val navController = rememberNavController()
 
-    // save input across rotation
+    // user input state
+    // rememberSaveable keeps small UI state across rotation/config changes
     var symptom by rememberSaveable { mutableStateOf("") }
     var painLevel by rememberSaveable { mutableStateOf(5f) }
     var duration by rememberSaveable { mutableStateOf("") }
 
-    // save result too
+    // result state
     var urgency by rememberSaveable { mutableStateOf("") }
     var recommendation by rememberSaveable { mutableStateOf("") }
 
-    // history list
+    // values shown on result screen
+    var submittedSymptom by rememberSaveable { mutableStateOf("") }
+    var submittedPainLevel by rememberSaveable { mutableStateOf(5) }
+    var submittedDuration by rememberSaveable { mutableStateOf("") }
+
+    // history state
     var history by rememberSaveable(
         stateSaver = listSaver(
             save = { it },
@@ -70,12 +76,23 @@ fun AppNav() {
                 onPainLevelChange = { painLevel = it },
                 duration = duration,
                 onDurationChange = { duration = it },
+                onVoiceResult = { spokenText ->
+                    symptom = spokenText
+                },
                 onSubmitClick = {
-                    // simple validation
+                    // validation
                     if (symptom.isBlank()) {
                         urgency = "Input Needed"
                         recommendation = "Please enter your symptom first."
+                        submittedSymptom = ""
+                        submittedPainLevel = painLevel.toInt()
+                        submittedDuration = duration
                     } else {
+                        // keep a copy for result screen before clearing inputs
+                        submittedSymptom = symptom
+                        submittedPainLevel = painLevel.toInt()
+                        submittedDuration = duration
+
                         val result = getTriageResult(
                             symptom = symptom,
                             painLevel = painLevel.toInt(),
@@ -85,9 +102,15 @@ fun AppNav() {
                         urgency = result.first
                         recommendation = result.second
 
-                        // save one history item
-                        val item = "Symptom: $symptom | Pain: ${painLevel.toInt()} | Duration: $duration | Result: $urgency"
+                        // save history
+                        val item =
+                            "Symptom: $symptom | Pain: ${painLevel.toInt()} | Duration: $duration | Result: $urgency"
                         history = (history + item).toMutableList()
+
+                        // clear input back to initial values
+                        symptom = ""
+                        painLevel = 5f
+                        duration = ""
                     }
 
                     navController.navigate(Routes.RESULT)
@@ -99,9 +122,9 @@ fun AppNav() {
             ResultScreen(
                 urgency = urgency,
                 recommendation = recommendation,
-                symptom = symptom,
-                painLevel = painLevel.toInt(),
-                duration = duration,
+                symptom = submittedSymptom,
+                painLevel = submittedPainLevel,
+                duration = submittedDuration,
                 onFindCareClick = {
                     navController.navigate(Routes.MAP)
                 },
@@ -131,7 +154,7 @@ fun AppNav() {
     }
 }
 
-// simple rule-based logic
+// simple rule-based triage logic
 fun getTriageResult(
     symptom: String,
     painLevel: Int,
@@ -143,6 +166,7 @@ fun getTriageResult(
     return when {
         text.contains("chest") ||
                 text.contains("shortness of breath") ||
+                text.contains("can't breathe") ||
                 text.contains("can’t breathe") ||
                 painLevel >= 8 -> {
             "Emergency" to "Your symptoms may need immediate attention. Please go to the ER or call emergency services if things get worse."
