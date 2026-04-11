@@ -15,11 +15,13 @@ import com.example.cs501_final_project.ui.MapScreen
 import com.example.cs501_final_project.ui.ResultScreen
 import com.example.cs501_final_project.ui.TriageScreen
 import com.example.cs501_final_project.ui.BodyPartScreen
+import com.example.cs501_final_project.ui.BodyPart3DScreen
 
 // app routes
 object Routes {
     const val HOME = "home"
     const val BODY_PART = "body_part"
+    const val BODY_PART_3D = "body_part_3d"
     const val TRIAGE = "triage"
     const val RESULT = "result"
     const val MAP = "map"
@@ -62,7 +64,7 @@ fun AppNav() {
         composable(Routes.HOME) {
             HomeScreen(
                 onStartClick = {
-                    navController.navigate(Routes.BODY_PART)
+                    navController.navigate(Routes.BODY_PART_3D)
                 },
                 onHistoryClick = {
                     navController.navigate(Routes.HISTORY)
@@ -72,6 +74,17 @@ fun AppNav() {
 
         composable(Routes.BODY_PART) {
             BodyPartScreen(
+                onBodyPartSelected = { selected ->
+                    navController.navigate(Routes.TRIAGE)
+                },
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Routes.BODY_PART_3D) {
+            BodyPart3DScreen(
                 onBodyPartSelected = { selected ->
                     navController.navigate(Routes.TRIAGE)
                 },
