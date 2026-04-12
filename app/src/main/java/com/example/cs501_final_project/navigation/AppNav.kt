@@ -169,12 +169,11 @@ fun AppNav() {
             )
         }
 
-        composable(Routes.HISTORY) {
+        composable("history") {
             HistoryScreen(
                 history = history,
-                onBackClick = {
-                    navController.popBackStack()
-                }
+                onHistoryItemClick = { },
+                onBackClick = { navController.popBackStack() }
             )
         }
     }
