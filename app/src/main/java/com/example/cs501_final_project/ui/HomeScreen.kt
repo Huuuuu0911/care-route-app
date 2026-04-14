@@ -1,5 +1,8 @@
 package com.example.cs501_final_project.ui
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +58,8 @@ fun HomeScreen(
     onStartClick: () -> Unit,
     onHistoryClick: () -> Unit
 ) {
+    val context = LocalContext.current
+
     val bgColor = Color(0xFFF6F8FC)
     val heroGradient = Brush.horizontalGradient(
         colors = listOf(
@@ -508,7 +513,7 @@ fun HomeScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -529,10 +534,28 @@ fun HomeScreen(
                     }
 
                     Text(
-                        text = "If you have severe chest pain, trouble breathing, or other serious symptoms, call 911 immediately.",
+                        text = "If you have severe chest pain, trouble breathing, or other serious symptoms, call immediately.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = emergencyAccent
                     )
+
+                    Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_CALL).apply {
+                                data = Uri.parse("tel:4126287316")
+                            }
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = emergencyAccent
+                        )
+                    ) {
+                        Text("Call 412-628-7316")
+                    }
                 }
             }
         }
