@@ -541,7 +541,7 @@ fun HomeScreen(
 
                     Button(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_CALL).apply {
+                            val intent = Intent(Intent.ACTION_DIAL).apply {
                                 data = Uri.parse("tel:4126287316")
                             }
                             context.startActivity(intent)
