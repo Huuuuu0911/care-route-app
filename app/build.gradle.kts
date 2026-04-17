@@ -58,10 +58,6 @@ android {
 
 dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("com.google.maps.android:maps-compose:4.4.1")
-    implementation("com.google.android.gms:play-services-maps:19.0.0")
-    implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
@@ -72,8 +68,8 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-maps:20.0.0")
     implementation("com.google.maps.android:maps-compose:6.12.0")
-    implementation("com.google.android.libraries.places:places:5.1.1")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.android.libraries.places:places:5.1.1")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

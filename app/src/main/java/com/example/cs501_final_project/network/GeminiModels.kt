@@ -9,7 +9,13 @@ data class Content(
 )
 
 data class Part(
-    val text: String
+    val text: String? = null,
+    val inlineData: InlineData? = null
+)
+
+data class InlineData(
+    val mimeType: String,
+    val data: String
 )
 
 data class GeminiResponse(

@@ -1,9 +1,11 @@
 package com.example.cs501_final_project.data
 
+import android.util.Base64
 import com.example.cs501_final_project.BuildConfig
 import com.example.cs501_final_project.network.Content
 import com.example.cs501_final_project.network.GeminiApiService
 import com.example.cs501_final_project.network.GeminiRequest
+import com.example.cs501_final_project.network.InlineData
 import com.example.cs501_final_project.network.Part
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
@@ -18,7 +20,7 @@ class GeminiRepository {
 
     init {
         val logging = HttpLoggingInterceptor()
-        logging.level = HttpLoggingInterceptor.Level.BODY
+        logging.level = HttpLoggingInterceptor.Level.BASIC
 
         val client = OkHttpClient.Builder()
             .addInterceptor(logging)
@@ -90,7 +92,7 @@ class GeminiRepository {
             QUESTION_3: ...
         """.trimIndent()
 
-        val text = requestText(prompt)
+        val text = requestText(listOf(Part(text = prompt)))
         if (text.isBlank()) {
             return listOf(
                 "Has it been getting worse?",
@@ -201,7 +203,7 @@ class GeminiRepository {
             - Recommendation score 5 means the app is very confident in the place/action category, not a medical certainty
         """.trimIndent()
 
-        val text = requestText(prompt)
+        val text = requestText(listOf(Part(text = prompt)))
         return if (text.isBlank()) {
             structuredFallback(
                 summary = "No response was received from the AI service.",
@@ -232,14 +234,214 @@ class GeminiRepository {
         }
     }
 
-    private suspend fun requestText(prompt: String): String {
-        val request = GeminiRequest(
-            contents = listOf(
-                Content(
-                    parts = listOf(
-                        Part(text = prompt)
+    suspend fun generateDailyHealthTip(
+        patient: PatientContext,
+        recentHistory: List<String>,
+        importedMedicalNotes: List<String>
+    ): DailyHealthTip {
+        val historyText = buildArchiveContext(recentHistory, importedMedicalNotes)
+        val today = todayKey()
+        val prompt = """
+            You are writing one daily health tip for a mobile health support app.
+            Keep it practical, calm, and general.
+            Do not diagnose.
+            Tailor the tip lightly using the profile and recent history.
+            Keep the main message under 35 words.
+            Keep the caution under 18 words.
+
+            Patient:
+            Name: ${patient.displayName}
+            Age: ${patient.age}
+            Birth date: ${patient.birthDate}
+            Gender: ${patient.gender}
+            Conditions: ${patient.conditions}
+            Allergies: ${patient.allergies}
+            Medications: ${patient.medications}
+
+            Recent records:
+            $historyText
+
+            Return exactly this format:
+            TITLE: ...
+            FOCUS: ...
+            TIP: ...
+            CAUTION: ...
+        """.trimIndent()
+
+        val text = requestText(listOf(Part(text = prompt)))
+        if (text.isBlank()) {
+            return fallbackDailyTip(patient, today)
+        }
+
+        return DailyHealthTip(
+            title = extractSingleLine(text, "TITLE").ifBlank { fallbackDailyTip(patient, today).title },
+            focusArea = extractSingleLine(text, "FOCUS").ifBlank { "Prevention" },
+            message = extractSingleLine(text, "TIP").ifBlank { fallbackDailyTip(patient, today).message },
+            caution = extractSingleLine(text, "CAUTION").ifBlank { "Seek urgent care if symptoms escalate quickly." },
+            generatedDate = today,
+            personId = patient.id,
+            source = "Gemini"
+        )
+    }
+
+    suspend fun generateCheckupSuggestions(
+        patient: PatientContext,
+        recentHistory: List<String>,
+        importedMedicalNotes: List<String>
+    ): List<PersonalizedCheckupSuggestion> {
+        val historyText = buildArchiveContext(recentHistory, importedMedicalNotes)
+        val today = todayKey()
+        val prompt = """
+            You are creating 3 concise personalized checkup suggestions for a health support app.
+            This is preventive guidance only, not a diagnosis.
+            Tailor the suggestions using age, birth date, gender, conditions, medications, allergies, and recent health history.
+            Each suggestion should feel practical for a mobile app.
+
+            Patient:
+            Name: ${patient.displayName}
+            Age: ${patient.age}
+            Birth date: ${patient.birthDate}
+            Gender: ${patient.gender}
+            Conditions: ${patient.conditions}
+            Allergies: ${patient.allergies}
+            Medications: ${patient.medications}
+
+            Recent records:
+            $historyText
+
+            Return exactly this format:
+            ITEM_1: title | reason | timeframe | priority(1-5)
+            ITEM_2: title | reason | timeframe | priority(1-5)
+            ITEM_3: title | reason | timeframe | priority(1-5)
+        """.trimIndent()
+
+        val text = requestText(listOf(Part(text = prompt)))
+        if (text.isBlank()) {
+            return fallbackCheckupSuggestions(patient, today)
+        }
+
+        val parsed = listOfNotNull(
+            parseSuggestionLine(extractSingleLine(text, "ITEM_1"), patient.id, today, "General wellness visit"),
+            parseSuggestionLine(extractSingleLine(text, "ITEM_2"), patient.id, today, "Medication and allergy review"),
+            parseSuggestionLine(extractSingleLine(text, "ITEM_3"), patient.id, today, "Symptom trend follow-up")
+        )
+
+        return if (parsed.isEmpty()) fallbackCheckupSuggestions(patient, today) else parsed
+    }
+
+    suspend fun structureManualMedicalRecord(
+        patient: PatientContext,
+        title: String,
+        rawText: String
+    ): ImportedMedicalRecordDraft {
+        val safeTitle = title.ifBlank { "Past medical note" }
+        val prompt = """
+            You are structuring a user's past medical note for a mobile health archive.
+            Keep the output conservative and app-friendly.
+            Do not diagnose.
+            Summarize only what is reasonably described.
+
+            Patient: ${patient.displayName}, age ${patient.age}, gender ${patient.gender}
+            Record title: $safeTitle
+            Raw note:
+            $rawText
+
+            Return exactly this format:
+            TITLE: ...
+            SUMMARY: ...
+            FINDINGS:
+            - item 1
+            - item 2
+            - item 3
+            FOLLOW_UP:
+            - item 1
+            - item 2
+            - item 3
+        """.trimIndent()
+
+        val text = requestText(listOf(Part(text = prompt)))
+        if (text.isBlank()) {
+            return ImportedMedicalRecordDraft(
+                title = safeTitle,
+                summary = rawText.take(180).ifBlank { "Manual medical record saved." },
+                findings = listOf("Manual note added to the archive."),
+                recommendedFollowUp = listOf("Review this note during your next visit."),
+                rawText = rawText
+            )
+        }
+
+        return ImportedMedicalRecordDraft(
+            title = extractSingleLine(text, "TITLE").ifBlank { safeTitle },
+            summary = extractSingleLine(text, "SUMMARY").ifBlank { rawText.take(180) },
+            findings = extractBullets(text, "FINDINGS", listOf("Manual record added to the archive.")),
+            recommendedFollowUp = extractBullets(text, "FOLLOW_UP", listOf("Bring this note to a clinician if symptoms return.")),
+            rawText = rawText
+        )
+    }
+
+    suspend fun summarizeMedicalRecordImage(
+        patient: PatientContext,
+        imageBytes: ByteArray,
+        mimeType: String
+    ): ImportedMedicalRecordDraft {
+        val encoded = Base64.encodeToString(imageBytes, Base64.NO_WRAP)
+        val prompt = """
+            You are reviewing a patient-uploaded medical note or document image for a mobile health archive.
+            Summarize only what is visible or strongly implied.
+            Do not diagnose.
+            If the image is unclear, say so briefly in the summary.
+            Keep the output concise and structured.
+
+            Patient: ${patient.displayName}, age ${patient.age}, gender ${patient.gender}
+
+            Return exactly this format:
+            TITLE: ...
+            SUMMARY: ...
+            FINDINGS:
+            - item 1
+            - item 2
+            - item 3
+            FOLLOW_UP:
+            - item 1
+            - item 2
+            - item 3
+        """.trimIndent()
+
+        val text = requestText(
+            listOf(
+                Part(text = prompt),
+                Part(
+                    inlineData = InlineData(
+                        mimeType = mimeType,
+                        data = encoded
                     )
                 )
+            )
+        )
+
+        if (text.isBlank()) {
+            return ImportedMedicalRecordDraft(
+                title = "Uploaded medical record",
+                summary = "The document was saved, but the image could not be summarized right now.",
+                findings = listOf("Try uploading a clearer image.", "Keep the original record available."),
+                recommendedFollowUp = listOf("Review it later with a clinician or pharmacist."),
+                rawText = ""
+            )
+        }
+
+        return ImportedMedicalRecordDraft(
+            title = extractSingleLine(text, "TITLE").ifBlank { "Uploaded medical record" },
+            summary = extractSingleLine(text, "SUMMARY").ifBlank { "Document uploaded to the health archive." },
+            findings = extractBullets(text, "FINDINGS", listOf("No clear findings extracted from the document.")),
+            recommendedFollowUp = extractBullets(text, "FOLLOW_UP", listOf("Review this document during the next visit if needed.")),
+            rawText = ""
+        )
+    }
+
+    private suspend fun requestText(parts: List<Part>): String {
+        val request = GeminiRequest(
+            contents = listOf(
+                Content(parts = parts)
             )
         )
 
@@ -254,203 +456,28 @@ class GeminiRepository {
                     ?.firstOrNull()
                     ?.content
                     ?.parts
-                    ?.firstOrNull()
+                    ?.firstOrNull { !it.text.isNullOrBlank() }
                     ?.text
 
                 if (!text.isNullOrBlank()) {
                     return text
                 }
             } catch (e: HttpException) {
-                val statusCode = e.code()
-
-                if (statusCode == 503 && attempt == 0) {
-                    delay(1500)
+                if (e.code() == 503 && attempt == 0) {
+                    delay(1200)
                     return@repeat
                 }
-
-                return when (statusCode) {
-                    400 -> structuredFallback(
-                        summary = "The request format was not accepted.",
-                        keyPoints = listOf(
-                            "The API request may be malformed",
-                            "Please review the input or prompt",
-                            "Try again after checking setup"
-                        ),
-                        selfCare = listOf(
-                            "Keep your symptom text clear and short",
-                            "Retry after editing the input",
-                            "Use manual care options if symptoms worsen"
-                        ),
-                        otcOptions = listOf(
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance"
-                        ),
-                        nextSteps = listOf(
-                            "Check request format",
-                            "Review API settings",
-                            "Try again"
-                        ),
-                        notes = "The server returned HTTP 400."
-                    )
-
-                    401, 403 -> structuredFallback(
-                        summary = "The API key or access setting may be incorrect.",
-                        keyPoints = listOf(
-                            "Authentication failed",
-                            "The API key may be invalid",
-                            "Access may not be enabled"
-                        ),
-                        selfCare = listOf(
-                            "Do not rely on this result until the app setup is fixed",
-                            "Use standard care options if symptoms worsen",
-                            "Seek real-world care for urgent symptoms"
-                        ),
-                        otcOptions = listOf(
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance"
-                        ),
-                        nextSteps = listOf(
-                            "Check your Gemini API key",
-                            "Confirm the API is enabled",
-                            "Try again after updating the key"
-                        ),
-                        notes = "The server returned HTTP $statusCode."
-                    )
-
-                    429 -> structuredFallback(
-                        summary = "Too many requests were sent in a short time.",
-                        keyPoints = listOf(
-                            "Rate limit was reached",
-                            "The service asked the app to slow down",
-                            "This is usually temporary"
-                        ),
-                        selfCare = listOf(
-                            "Wait a moment before retrying",
-                            "Monitor whether symptoms are stable or worsening",
-                            "Do not delay urgent care if warning signs appear"
-                        ),
-                        otcOptions = listOf(
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance"
-                        ),
-                        nextSteps = listOf(
-                            "Wait a moment",
-                            "Try again later",
-                            "Reduce repeated requests"
-                        ),
-                        notes = "The server returned HTTP 429."
-                    )
-
-                    503 -> structuredFallback(
-                        summary = "The AI service is temporarily busy.",
-                        keyPoints = listOf(
-                            "The Gemini service is under high demand",
-                            "Your request did reach the server",
-                            "This is usually temporary"
-                        ),
-                        selfCare = listOf(
-                            "Keep tracking symptom changes",
-                            "Use the map tab if you already know you need care",
-                            "Escalate to urgent care if warning signs develop"
-                        ),
-                        otcOptions = listOf(
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance"
-                        ),
-                        nextSteps = listOf(
-                            "Try again in a moment",
-                            "Keep symptom text short and clear",
-                            "Retry after a short pause"
-                        ),
-                        notes = "The server returned HTTP 503. This is usually a temporary service issue, not an app UI problem."
-                    )
-
-                    else -> structuredFallback(
-                        summary = "The request could not be completed.",
-                        keyPoints = listOf(
-                            "The server returned an unexpected response",
-                            "This may be temporary",
-                            "Please try again"
-                        ),
-                        selfCare = listOf(
-                            "Keep monitoring your symptoms",
-                            "Use standard care escalation if needed",
-                            "Do not wait if warning signs appear"
-                        ),
-                        otcOptions = listOf(
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance",
-                            "Not appropriate without clinician or pharmacist guidance"
-                        ),
-                        nextSteps = listOf(
-                            "Try again later",
-                            "Check network connection",
-                            "Review API setup if the issue continues"
-                        ),
-                        notes = "The server returned HTTP $statusCode."
-                    )
-                }
-            } catch (e: Exception) {
+                return ""
+            } catch (_: Exception) {
                 if (attempt == 0) {
-                    delay(1000)
+                    delay(900)
                     return@repeat
                 }
-
-                return structuredFallback(
-                    summary = "The app could not reach the AI service.",
-                    keyPoints = listOf(
-                        "A network or runtime error happened",
-                        "The request did not complete normally",
-                        "Please try again"
-                    ),
-                    selfCare = listOf(
-                        "If symptoms are stable, retry later",
-                        "If symptoms are severe, use urgent care or emergency services",
-                        "Track any new warning signs"
-                    ),
-                    otcOptions = listOf(
-                        "Not appropriate without clinician or pharmacist guidance",
-                        "Not appropriate without clinician or pharmacist guidance",
-                        "Not appropriate without clinician or pharmacist guidance"
-                    ),
-                    nextSteps = listOf(
-                        "Check internet connection",
-                        "Try again later",
-                        "Review app setup if it keeps happening"
-                    ),
-                    notes = "${e.javaClass.simpleName}: ${e.message}"
-                )
+                return ""
             }
         }
 
-        return structuredFallback(
-            summary = "No response was received from the AI service.",
-            keyPoints = listOf(
-                "The request completed without usable content",
-                "The service may be busy",
-                "Please try again"
-            ),
-            selfCare = listOf(
-                "Rest while you retry the request",
-                "Track any change in symptoms",
-                "Seek care sooner if symptoms become severe"
-            ),
-            otcOptions = listOf(
-                "Not appropriate without clinician or pharmacist guidance",
-                "Not appropriate without clinician or pharmacist guidance",
-                "Not appropriate without clinician or pharmacist guidance"
-            ),
-            nextSteps = listOf(
-                "Retry in a moment",
-                "Check the API key",
-                "Review network connection"
-            ),
-            notes = "The response body did not contain usable text."
-        )
+        return ""
     }
 
     private fun extractSingleLine(text: String, key: String): String {
@@ -459,6 +486,127 @@ class GeminiRepository {
             ?.substringAfter("$key:")
             ?.trim()
             .orEmpty()
+    }
+
+    private fun extractBullets(text: String, key: String, fallback: List<String>): List<String> {
+        val lines = text.lines()
+        val startIndex = lines.indexOfFirst { it.trim().startsWith("$key:") }
+        if (startIndex == -1) return fallback
+
+        val collected = mutableListOf<String>()
+        for (index in startIndex + 1 until lines.size) {
+            val line = lines[index].trim()
+            if (line.endsWith(":") && !line.startsWith("-") && !line.startsWith("•")) break
+            if (line.startsWith("- ")) collected.add(line.removePrefix("- ").trim())
+            if (line.startsWith("• ")) collected.add(line.removePrefix("• ").trim())
+        }
+        return if (collected.isEmpty()) fallback else collected
+    }
+
+    private fun parseSuggestionLine(
+        line: String,
+        personId: String,
+        generatedDate: String,
+        fallbackTitle: String
+    ): PersonalizedCheckupSuggestion? {
+        if (line.isBlank()) return null
+        val pieces = line.split("|").map { it.trim() }
+        val title = pieces.getOrNull(0).orEmpty().ifBlank { fallbackTitle }
+        val reason = pieces.getOrNull(1).orEmpty().ifBlank { "Useful based on your profile and recent records." }
+        val timeframe = pieces.getOrNull(2).orEmpty().ifBlank { "In the next routine visit" }
+        val priority = pieces.getOrNull(3)?.filter { it.isDigit() }?.toIntOrNull()?.coerceIn(1, 5) ?: 3
+        return PersonalizedCheckupSuggestion(
+            id = title + generatedDate + personId,
+            title = title,
+            reason = reason,
+            timeframe = timeframe,
+            priority = priority,
+            personId = personId,
+            generatedDate = generatedDate
+        )
+    }
+
+    private fun buildArchiveContext(recentHistory: List<String>, importedMedicalNotes: List<String>): String {
+        val checks = if (recentHistory.isEmpty()) {
+            "No recent symptom checks."
+        } else {
+            recentHistory.joinToString("\n") { "- $it" }
+        }
+        val records = if (importedMedicalNotes.isEmpty()) {
+            "No saved medical notes."
+        } else {
+            importedMedicalNotes.joinToString("\n") { "- $it" }
+        }
+        return "Symptom checks:\n$checks\n\nSaved records:\n$records"
+    }
+
+    private fun fallbackDailyTip(patient: PatientContext, today: String): DailyHealthTip {
+        val message = when {
+            patient.conditions.contains("asthma", ignoreCase = true) -> "Keep rescue medicines easy to access and note any breathing trigger that appears today."
+            patient.conditions.contains("diabetes", ignoreCase = true) -> "Pair symptom checks with a quick note about meals, energy, and any glucose-related concerns."
+            patient.allergies.isNotBlank() -> "Check labels carefully before trying any over-the-counter medicine or new supplement."
+            else -> "Track start time, severity changes, and anything that makes the symptom better or worse."
+        }
+        return DailyHealthTip(
+            title = "Today's health note",
+            message = message,
+            focusArea = "Self-monitoring",
+            caution = "Get urgent help for severe breathing trouble, fainting, or heavy bleeding.",
+            generatedDate = today,
+            personId = patient.id
+        )
+    }
+
+    private fun fallbackCheckupSuggestions(
+        patient: PatientContext,
+        today: String
+    ): List<PersonalizedCheckupSuggestion> {
+        val items = mutableListOf(
+            PersonalizedCheckupSuggestion(
+                id = "wellness-$today-${patient.id}",
+                title = "General wellness visit",
+                reason = "A routine visit keeps baseline health information current for future symptom checks.",
+                timeframe = "Within the next 3 to 6 months",
+                priority = 3,
+                personId = patient.id,
+                generatedDate = today
+            ),
+            PersonalizedCheckupSuggestion(
+                id = "meds-$today-${patient.id}",
+                title = "Medication and allergy review",
+                reason = "Keeping a current medication and allergy list reduces risks when symptoms flare up.",
+                timeframe = "At your next routine appointment",
+                priority = 4,
+                personId = patient.id,
+                generatedDate = today
+            )
+        )
+
+        val ageValue = patient.age.toIntOrNull()
+        val ageSpecific = if (ageValue != null && ageValue >= 40) {
+            PersonalizedCheckupSuggestion(
+                id = "preventive-$today-${patient.id}",
+                title = "Preventive screening review",
+                reason = "Age-related preventive screening becomes more useful as general health risks gradually increase.",
+                timeframe = "Discuss in the next routine visit",
+                priority = 5,
+                personId = patient.id,
+                generatedDate = today
+            )
+        } else {
+            PersonalizedCheckupSuggestion(
+                id = "baseline-$today-${patient.id}",
+                title = "Baseline preventive check",
+                reason = "A baseline exam helps future symptom visits feel faster and more personalized.",
+                timeframe = "During your next annual visit",
+                priority = 3,
+                personId = patient.id,
+                generatedDate = today
+            )
+        }
+
+        items.add(ageSpecific)
+        return items.take(3)
     }
 
     private fun structuredFallback(
@@ -496,8 +644,8 @@ class GeminiRepository {
 
             SELF_CARE:
             - ${selfCare.getOrElse(0) { "Rest and monitor symptoms" }}
-            - ${selfCare.getOrElse(1) { "Use caution with new symptoms" }}
-            - ${selfCare.getOrElse(2) { "Seek care if warning signs appear" }}
+            - ${selfCare.getOrElse(1) { "Track symptom changes" }}
+            - ${selfCare.getOrElse(2) { "Seek help if symptoms worsen" }}
 
             OTC_OPTIONS:
             - ${otcOptions.getOrElse(0) { "Not appropriate without clinician or pharmacist guidance" }}
@@ -517,5 +665,13 @@ class GeminiRepository {
             NOTES:
             $notes
         """.trimIndent()
+    }
+
+    private fun todayKey(): String {
+        val now = java.util.Calendar.getInstance()
+        val month = (now.get(java.util.Calendar.MONTH) + 1).toString().padStart(2, '0')
+        val day = now.get(java.util.Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
+        val year = now.get(java.util.Calendar.YEAR)
+        return "$year-$month-$day"
     }
 }

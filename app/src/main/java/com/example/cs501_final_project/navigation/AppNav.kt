@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -153,8 +152,8 @@ private fun MainAppNav(
             composable(BottomNavDestination.History.route) {
                 HistoryScreen(
                     viewModel = viewModel,
-                    onOpenMap = {
-                        navController.navigate(BottomNavDestination.Map.route)
+                    onOpenMap = { query ->
+                        navController.navigate("map?query=${Uri.encode(query)}")
                     }
                 )
             }
@@ -172,14 +171,13 @@ private fun MainAppNav(
                         nullable = true
                     }
                 )
-            ) {
-                MapScreen()
+            ) { backStackEntry ->
+                val query = Uri.decode(backStackEntry.arguments?.getString("query").orEmpty())
+                MapScreen(initialQuery = query)
             }
 
             composable(BottomNavDestination.Setting.route) {
-                SettingScreen(
-                    viewModel = viewModel
-                )
+                SettingScreen(viewModel = viewModel)
             }
 
             composable("body3d") {
@@ -189,9 +187,7 @@ private fun MainAppNav(
             composable(
                 route = "detail/{part}",
                 arguments = listOf(
-                    navArgument("part") {
-                        type = NavType.StringType
-                    }
+                    navArgument("part") { type = NavType.StringType }
                 )
             ) { backStackEntry ->
                 DetailScreen(

@@ -7,6 +7,12 @@ enum class AccentThemeOption {
     ORANGE
 }
 
+enum class MedicalRecordSourceType {
+    MANUAL_ENTRY,
+    GALLERY_UPLOAD,
+    CAMERA_CAPTURE
+}
+
 data class PatientProfile(
     val name: String = "",
     val birthDate: String = "",
@@ -48,6 +54,48 @@ data class SavedCheckRecord(
     val summary: String,
     val mapQuery: String,
     val createdAt: Long = System.currentTimeMillis()
+)
+
+data class DailyHealthTip(
+    val title: String,
+    val message: String,
+    val focusArea: String,
+    val caution: String,
+    val generatedDate: String,
+    val personId: String,
+    val source: String = "Gemini"
+)
+
+data class PersonalizedCheckupSuggestion(
+    val id: String,
+    val title: String,
+    val reason: String,
+    val timeframe: String,
+    val priority: Int,
+    val personId: String,
+    val generatedDate: String
+)
+
+data class ImportedMedicalRecord(
+    val id: String,
+    val personId: String,
+    val personName: String,
+    val sourceType: MedicalRecordSourceType,
+    val sourceLabel: String,
+    val title: String,
+    val summary: String,
+    val findings: List<String>,
+    val recommendedFollowUp: List<String>,
+    val rawText: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class ImportedMedicalRecordDraft(
+    val title: String,
+    val summary: String,
+    val findings: List<String>,
+    val recommendedFollowUp: List<String>,
+    val rawText: String = ""
 )
 
 data class AppSettings(

@@ -35,10 +35,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -56,8 +58,14 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 
 @Composable
-fun MapScreen() {
+fun MapScreen(
+    initialQuery: String = ""
+) {
+    val context = LocalContext.current
+    val bgColor = Color(0xFFF6F8FC)
 
+    var searchText by rememberSaveable { mutableStateOf(initialQuery) }
+    var selectedCategory by rememberSaveable { mutableStateOf("Hospital") }
 
     fun buildCategoryQuery(category: String): String {
         return when (category) {
@@ -68,11 +76,6 @@ fun MapScreen() {
             else -> "$category near me"
         }
     }
-    val context = LocalContext.current
-    val bgColor = Color(0xFFF6F8FC)
-
-    var searchText by rememberSaveable { mutableStateOf("") }
-    var selectedCategory by rememberSaveable { mutableStateOf("Hospital") }
 
     val quickCategories = remember {
         listOf("Hospital", "Pharmacy", "Urgent Care", "Checkup Center")
@@ -91,6 +94,10 @@ fun MapScreen() {
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultCenter, 13f)
+    }
+
+    val markerState = remember {
+        MarkerState(position = defaultCenter)
     }
 
     val mapUiSettings = remember {
@@ -112,9 +119,15 @@ fun MapScreen() {
     fun openMapQuery(query: String) {
         val intent = Intent(
             Intent.ACTION_VIEW,
-            Uri.parse("geo:0,0?q=${Uri.encode(query)}")
+            "geo:0,0?q=${Uri.encode(query)}".toUri()
         )
         context.startActivity(intent)
+    }
+
+    LaunchedEffect(initialQuery) {
+        if (initialQuery.isNotBlank()) {
+            searchText = initialQuery
+        }
     }
 
     Surface(
@@ -189,8 +202,9 @@ fun MapScreen() {
                                 selected = selectedCategory == category,
                                 onClick = {
                                     selectedCategory = category
-                                    searchText = ""
-                                    openMapQuery(buildCategoryQuery(category))
+                                    if (searchText.isBlank()) {
+                                        searchText = buildCategoryQuery(category)
+                                    }
                                 },
                                 label = { Text(category) },
                                 colors = FilterChipDefaults.filterChipColors(
@@ -218,25 +232,17 @@ fun MapScreen() {
                             uiSettings = mapUiSettings
                         ) {
                             Marker(
-                                state = MarkerState(position = defaultCenter),
+                                state = markerState,
                                 title = "CareRoute Map",
-                                snippet = if (searchText.isBlank()) {
-                                    "$selectedCategory search area"
-                                } else {
-                                    searchText
-                                }
+                                snippet = searchText.ifBlank { "$selectedCategory search area" }
                             )
                         }
                     }
 
                     Button(
                         onClick = {
-                            val query = if (searchText.isBlank()) {
-                                buildCategoryQuery(selectedCategory)
-                            } else {
-                                "$searchText near me"
-                            }
-                            openMapQuery(query)
+                            val query = searchText.ifBlank { buildCategoryQuery(selectedCategory) }
+                            openMapQuery(if (query.contains("near me", ignoreCase = true)) query else "$query near me")
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -307,8 +313,8 @@ fun MapScreen() {
                     accent = Color(0xFF12B76A),
                     onClick = {
                         selectedCategory = "Checkup Center"
-                        searchText = "checkup center"
-                        openMapQuery("checkup center near me")
+                        searchText = "primary care clinic"
+                        openMapQuery("primary care clinic near me")
                     }
                 )
             }
@@ -337,7 +343,7 @@ fun MapScreen() {
                     }
 
                     Text(
-                        text = "This page now shows an embedded map directly in the app, while the green button still opens Google Maps for a real nearby search.",
+                        text = "This page keeps an embedded map in the app while the green action button still opens Google Maps for live nearby search results.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF667085)
                     )
