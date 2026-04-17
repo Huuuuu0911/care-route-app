@@ -57,6 +57,17 @@ import com.google.maps.android.compose.rememberCameraPositionState
 
 @Composable
 fun MapScreen() {
+
+
+    fun buildCategoryQuery(category: String): String {
+        return when (category) {
+            "Hospital" -> "hospital near me"
+            "Pharmacy" -> "pharmacy near me"
+            "Urgent Care" -> "urgent care near me"
+            "Checkup Center" -> "primary care clinic near me"
+            else -> "$category near me"
+        }
+    }
     val context = LocalContext.current
     val bgColor = Color(0xFFF6F8FC)
 
@@ -176,7 +187,11 @@ fun MapScreen() {
                         quickCategories.forEach { category ->
                             FilterChip(
                                 selected = selectedCategory == category,
-                                onClick = { selectedCategory = category },
+                                onClick = {
+                                    selectedCategory = category
+                                    searchText = ""
+                                    openMapQuery(buildCategoryQuery(category))
+                                },
                                 label = { Text(category) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = Color(0xFFE6F4EA),
@@ -217,7 +232,7 @@ fun MapScreen() {
                     Button(
                         onClick = {
                             val query = if (searchText.isBlank()) {
-                                "$selectedCategory near me"
+                                buildCategoryQuery(selectedCategory)
                             } else {
                                 "$searchText near me"
                             }
