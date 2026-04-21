@@ -18,7 +18,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            CareRouteTheme {
+            CareRouteTheme(
+                darkTheme = careRouteViewModel.settings.darkModeEnabled,
+                accentTheme = careRouteViewModel.settings.accentTheme
+            ) {
                 AppNav(
                     viewModel = careRouteViewModel,
                     authViewModel = authViewModel

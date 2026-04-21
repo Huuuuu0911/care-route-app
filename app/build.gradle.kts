@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 val localProperties = Properties().apply {
@@ -14,6 +15,8 @@ val localProperties = Properties().apply {
 
 val mapsApiKey = localProperties.getProperty("MAPS_API_KEY", "")
 val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY", "")
+val roomVersion = "2.8.4"
+val dataStoreVersion = "1.2.1"
 
 android {
     namespace = "com.example.cs501_final_project"
@@ -65,6 +68,11 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("io.github.sceneview:sceneview:3.6.2")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+    implementation("androidx.datastore:datastore-preferences:$dataStoreVersion")
 
     implementation("com.google.android.gms:play-services-maps:20.0.0")
     implementation("com.google.maps.android:maps-compose:6.12.0")

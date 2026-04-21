@@ -177,7 +177,10 @@ private fun MainAppNav(
             }
 
             composable(BottomNavDestination.Setting.route) {
-                SettingScreen(viewModel = viewModel)
+                SettingScreen(
+                    viewModel = viewModel,
+                    onLogout = { authViewModel.logout() }
+                )
             }
 
             composable("body3d") {

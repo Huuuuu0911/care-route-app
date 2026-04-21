@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,9 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,47 +58,51 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.cs501_final_project.data.AccentThemeOption
 import com.example.cs501_final_project.data.CareRouteViewModel
+import com.example.cs501_final_project.data.FamilyMember
 
 @Composable
 fun SettingScreen(
-    viewModel: CareRouteViewModel
+    viewModel: CareRouteViewModel,
+    onLogout: () -> Unit
 ) {
-    val patient = viewModel.activePatientContext()
+    val profile = viewModel.selfProfile
+    val settings = viewModel.settings
+    val familyMembers = viewModel.familyMembers
 
     var showEditDialog by rememberSaveable { mutableStateOf(false) }
     var showAddFamilyDialog by rememberSaveable { mutableStateOf(false) }
 
-    var displayName by rememberSaveable(patient.displayName) {
-        mutableStateOf(patient.displayName.ifBlank { "User" })
-    }
-    var phone by rememberSaveable { mutableStateOf("") }
-    var birthDate by rememberSaveable { mutableStateOf("") }
-
-    var notificationsOn by rememberSaveable { mutableStateOf(true) }
-    var darkModeOn by rememberSaveable { mutableStateOf(false) }
-    var accentColor by rememberSaveable { mutableStateOf("Blue") }
-
-    val familyMembers = remember {
-        mutableStateListOf(
-            "Mom",
-            "Dad"
-        )
-    }
-
     if (showEditDialog) {
-        var tempName by remember { mutableStateOf(displayName) }
-        var tempPhone by remember { mutableStateOf(phone) }
-        var tempBirthDate by remember { mutableStateOf(birthDate) }
+        var tempName by rememberSaveable(profile.name) { mutableStateOf(profile.name) }
+        var tempPhone by rememberSaveable(profile.phone) { mutableStateOf(profile.phone) }
+        var tempBirthDate by rememberSaveable(profile.birthDate) { mutableStateOf(profile.birthDate) }
+        var tempGender by rememberSaveable(profile.gender) { mutableStateOf(profile.gender) }
+        var tempConditions by rememberSaveable(profile.conditions) { mutableStateOf(profile.conditions) }
+        var tempAllergies by rememberSaveable(profile.allergies) { mutableStateOf(profile.allergies) }
+        var tempMedications by rememberSaveable(profile.medications) { mutableStateOf(profile.medications) }
+        var tempEmergencyContact by rememberSaveable(profile.emergencyContact) {
+            mutableStateOf(profile.emergencyContact)
+        }
 
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        displayName = tempName.ifBlank { displayName }
-                        phone = tempPhone
-                        birthDate = formatBirthDateInput(tempBirthDate)
+                        viewModel.updateSelfProfile(
+                            profile.copy(
+                                name = tempName.trim(),
+                                phone = tempPhone.trim(),
+                                birthDate = formatBirthDateInput(tempBirthDate),
+                                gender = tempGender.trim(),
+                                conditions = tempConditions.trim(),
+                                allergies = tempAllergies.trim(),
+                                medications = tempMedications.trim(),
+                                emergencyContact = tempEmergencyContact.trim()
+                            )
+                        )
                         showEditDialog = false
                     }
                 ) {
@@ -119,7 +122,13 @@ fun SettingScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     OutlinedTextField(
                         value = tempName,
                         onValueChange = { tempName = it },
@@ -141,9 +150,7 @@ fun SettingScreen(
 
                     OutlinedTextField(
                         value = tempBirthDate,
-                        onValueChange = {
-                            tempBirthDate = formatBirthDateInput(it)
-                        },
+                        onValueChange = { tempBirthDate = formatBirthDateInput(it) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Birth Date") },
                         placeholder = { Text("MM / DD / YYYY") },
@@ -158,6 +165,51 @@ fun SettingScreen(
                             )
                         }
                     )
+
+                    OutlinedTextField(
+                        value = tempGender,
+                        onValueChange = { tempGender = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Gender") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = tempConditions,
+                        onValueChange = { tempConditions = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Conditions") },
+                        placeholder = { Text("Example: asthma, diabetes") },
+                        shape = RoundedCornerShape(16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = tempAllergies,
+                        onValueChange = { tempAllergies = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Allergies") },
+                        placeholder = { Text("Example: penicillin, peanuts") },
+                        shape = RoundedCornerShape(16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = tempMedications,
+                        onValueChange = { tempMedications = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Medications") },
+                        placeholder = { Text("Current medications") },
+                        shape = RoundedCornerShape(16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = tempEmergencyContact,
+                        onValueChange = { tempEmergencyContact = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Emergency Contact") },
+                        placeholder = { Text("Name and phone number") },
+                        shape = RoundedCornerShape(16.dp)
+                    )
                 }
             },
             shape = RoundedCornerShape(28.dp)
@@ -165,7 +217,8 @@ fun SettingScreen(
     }
 
     if (showAddFamilyDialog) {
-        var tempFamilyName by remember { mutableStateOf("") }
+        var tempFamilyName by rememberSaveable { mutableStateOf("") }
+        var tempRelation by rememberSaveable { mutableStateOf("Family") }
 
         AlertDialog(
             onDismissRequest = { showAddFamilyDialog = false },
@@ -173,7 +226,17 @@ fun SettingScreen(
                 TextButton(
                     onClick = {
                         if (tempFamilyName.isNotBlank()) {
-                            familyMembers.add(tempFamilyName.trim())
+                            viewModel.createFamilyMember(
+                                name = tempFamilyName.trim(),
+                                relation = tempRelation.trim().ifBlank { "Family" },
+                                birthDate = "",
+                                age = "",
+                                gender = "",
+                                allergies = "",
+                                medications = "",
+                                conditions = "",
+                                notes = ""
+                            )
                         }
                         showAddFamilyDialog = false
                     }
@@ -194,15 +257,26 @@ fun SettingScreen(
                 )
             },
             text = {
-                OutlinedTextField(
-                    value = tempFamilyName,
-                    onValueChange = { tempFamilyName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Name") },
-                    placeholder = { Text("Example: Mom") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp)
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = tempFamilyName,
+                        onValueChange = { tempFamilyName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Name") },
+                        placeholder = { Text("Example: Mom") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    OutlinedTextField(
+                        value = tempRelation,
+                        onValueChange = { tempRelation = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Relation") },
+                        placeholder = { Text("Example: Mother") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                }
             },
             shape = RoundedCornerShape(28.dp)
         )
@@ -210,7 +284,7 @@ fun SettingScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF6F8FC)
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
@@ -221,9 +295,9 @@ fun SettingScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             ProfileHeader(
-                displayName = displayName.ifBlank { patient.displayName.ifBlank { "User" } },
-                phone = phone,
-                birthDate = birthDate,
+                displayName = profile.name.ifBlank { "User" },
+                phone = profile.phone,
+                birthDate = profile.birthDate,
                 onEditClick = { showEditDialog = true }
             )
 
@@ -232,26 +306,31 @@ fun SettingScreen(
             FamilySection(
                 familyMembers = familyMembers,
                 onAddClick = { showAddFamilyDialog = true },
-                onDeleteClick = { name -> familyMembers.remove(name) }
+                onDeleteClick = { memberId -> viewModel.deleteFamilyMember(memberId) }
             )
 
             SectionTitle("App Preferences")
 
             PreferencesSection(
-                notificationsOn = notificationsOn,
-                onNotificationsChange = { notificationsOn = it },
-                darkModeOn = darkModeOn,
-                onDarkModeChange = { darkModeOn = it },
-                accentColor = accentColor,
-                onAccentColorChange = { accentColor = it }
+                notificationsOn = settings.notificationsEnabled,
+                onNotificationsChange = { viewModel.toggleNotifications(it) },
+                darkModeOn = settings.darkModeEnabled,
+                onDarkModeChange = { viewModel.toggleDarkMode(it) },
+                accentColor = settings.accentTheme,
+                onAccentColorChange = { viewModel.updateAccentTheme(it) }
             )
 
             SectionTitle("More")
 
-            UsefulLinksSection()
+            UsefulLinksSection(
+                profileCompletion = viewModel.profileCompletionScore(),
+                familyCount = familyMembers.size,
+                archiveCount = viewModel.historyRecords.size + viewModel.importedMedicalRecords.size
+            )
 
             AccountFooter(
-                currentUser = displayName.ifBlank { patient.displayName.ifBlank { "User" } }
+                currentUser = profile.name.ifBlank { "User" },
+                onLogout = onLogout
             )
         }
     }
@@ -387,13 +466,13 @@ private fun SectionTitle(
         text = title,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF101828)
+        color = MaterialTheme.colorScheme.onBackground
     )
 }
 
 @Composable
 private fun FamilySection(
-    familyMembers: List<String>,
+    familyMembers: List<FamilyMember>,
     onAddClick: () -> Unit,
     onDeleteClick: (String) -> Unit
 ) {
@@ -402,7 +481,7 @@ private fun FamilySection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, Color(0xFFE7ECF3), RoundedCornerShape(22.dp))
                 .clickable { onAddClick() }
                 .padding(16.dp),
@@ -449,7 +528,7 @@ private fun FamilySection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface)
                     .border(1.dp, Color(0xFFE7ECF3), RoundedCornerShape(22.dp))
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -470,14 +549,20 @@ private fun FamilySection(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Text(
-                    text = member,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = member.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = member.relation.ifBlank { "Family" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF667085)
+                    )
+                }
 
-                TextButton(onClick = { onDeleteClick(member) }) {
+                TextButton(onClick = { onDeleteClick(member.id) }) {
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = null,
@@ -495,8 +580,8 @@ private fun PreferencesSection(
     onNotificationsChange: (Boolean) -> Unit,
     darkModeOn: Boolean,
     onDarkModeChange: (Boolean) -> Unit,
-    accentColor: String,
-    onAccentColorChange: (String) -> Unit
+    accentColor: AccentThemeOption,
+    onAccentColorChange: (AccentThemeOption) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PreferenceRow(
@@ -527,7 +612,7 @@ private fun PreferencesSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, Color(0xFFE7ECF3), RoundedCornerShape(22.dp))
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -564,11 +649,11 @@ private fun PreferencesSection(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Blue", "Purple", "Green").forEach { option ->
+                AccentThemeOption.entries.forEach { option ->
                     FilterChip(
                         selected = accentColor == option,
                         onClick = { onAccentColorChange(option) },
-                        label = { Text(option) },
+                        label = { Text(option.displayName()) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color(0xFFEAE6FF),
                             selectedLabelColor = Color(0xFF4B3BC8)
@@ -591,7 +676,7 @@ private fun PreferenceRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, Color(0xFFE7ECF3), RoundedCornerShape(22.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -630,18 +715,28 @@ private fun PreferenceRow(
 }
 
 @Composable
-private fun UsefulLinksSection() {
+private fun UsefulLinksSection(
+    profileCompletion: Int,
+    familyCount: Int,
+    archiveCount: Int
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         UsefulRow(
             icon = Icons.Default.Person,
             title = "Profile Completion",
-            subtitle = "Keep your main details updated for better triage"
+            subtitle = "$profileCompletion% complete. More details improve triage accuracy."
         )
 
         UsefulRow(
             icon = Icons.Default.Groups,
             title = "Family Management",
-            subtitle = "Switch between profiles for quicker symptom checks"
+            subtitle = "You currently have $familyCount saved family profile(s)."
+        )
+
+        UsefulRow(
+            icon = Icons.Default.SettingsSuggest,
+            title = "History Archive",
+            subtitle = "You have $archiveCount saved check or medical record item(s)."
         )
     }
 }
@@ -656,7 +751,7 @@ private fun UsefulRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, Color(0xFFE7ECF3), RoundedCornerShape(22.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -694,7 +789,8 @@ private fun UsefulRow(
 
 @Composable
 private fun AccountFooter(
-    currentUser: String
+    currentUser: String,
+    onLogout: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -711,7 +807,7 @@ private fun AccountFooter(
         )
 
         TextButton(
-            onClick = { },
+            onClick = onLogout,
             modifier = Modifier.align(Alignment.Start)
         ) {
             Icon(
@@ -725,6 +821,15 @@ private fun AccountFooter(
                 color = Color(0xFFD92D20)
             )
         }
+    }
+}
+
+private fun AccentThemeOption.displayName(): String {
+    return when (this) {
+        AccentThemeOption.BLUE -> "Blue"
+        AccentThemeOption.PURPLE -> "Purple"
+        AccentThemeOption.GREEN -> "Green"
+        AccentThemeOption.ORANGE -> "Orange"
     }
 }
 
