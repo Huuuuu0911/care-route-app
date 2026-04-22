@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.google.android.gms.maps.model.CameraPosition
@@ -258,11 +260,15 @@ fun MapScreen(
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 QuickMapCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     title = "Hospitals",
                     subtitle = "Emergency and general care",
                     icon = Icons.Default.LocalHospital,
@@ -275,7 +281,9 @@ fun MapScreen(
                 )
 
                 QuickMapCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     title = "Pharmacy",
                     subtitle = "Prescription and OTC help",
                     icon = Icons.Default.Medication,
@@ -289,11 +297,15 @@ fun MapScreen(
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 QuickMapCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     title = "Urgent Care",
                     subtitle = "Faster walk-in options",
                     icon = Icons.Default.MedicalServices,
@@ -306,7 +318,9 @@ fun MapScreen(
                 )
 
                 QuickMapCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     title = "Checkup Center",
                     subtitle = "Routine screening visits",
                     icon = Icons.Default.Place,
@@ -358,7 +372,7 @@ private fun QuickMapCard(
     modifier: Modifier = Modifier,
     title: String,
     subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     accent: Color,
     onClick: () -> Unit
 ) {
@@ -370,7 +384,9 @@ private fun QuickMapCard(
         onClick = onClick
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
@@ -382,13 +398,15 @@ private fun QuickMapCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                minLines = 1
             )
 
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF667085)
+                color = Color(0xFF667085),
+                minLines = 2
             )
         }
     }
