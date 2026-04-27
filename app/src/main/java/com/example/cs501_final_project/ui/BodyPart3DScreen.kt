@@ -518,56 +518,7 @@ private fun ChipRows(
     }
 }
 
-@Composable
-private fun ClothingOverlay(
-    overlaySpec: BodyOverlaySpec,
-    side: String
-) {
-    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
-    val shortsColor = Color(0xFF1F2937)      // 短裤主色(深色)
-    val waistbandColor = Color(0xFF374151)   // 裤腰高光(略亮)
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { canvasSize = it }
-    ) {
-        if (canvasSize.width == 0 || canvasSize.height == 0) return@Box
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val bfL = canvasSize.width * overlaySpec.bounds.leftRatio
-            val bfT = canvasSize.height * overlaySpec.bounds.topRatio
-            val bfW = canvasSize.width * overlaySpec.bounds.widthRatio
-            val bfH = canvasSize.height * overlaySpec.bounds.heightRatio
-
-            when (side) {
-                "Front", "Back" -> {
-                    drawShorts(
-                        bodyColor = shortsColor,
-                        waistColor = waistbandColor,
-                        centerX = bfL + bfW * 0.50f,
-                        topY = bfT + bfH * 0.38f,
-                        width = bfW * 0.36f,
-                        height = bfH * 0.22f
-                    )
-                }
-
-                "Left", "Right" -> {
-                    val cx = if (side == "Left") 0.55f else 0.45f
-                    drawShortsSide(
-                        bodyColor = shortsColor,
-                        waistColor = waistbandColor,
-                        centerX = bfL + bfW * cx,
-                        topY = bfT + bfH * 0.38f,
-                        width = bfW * 0.18f,
-                        height = bfH * 0.22f
-                    )
-                }
-            }
-        }
-    }
-}
 
 // 正/背面短裤:外侧竖直,两条明显的长方形裤腿,胯下 V 字
 private fun DrawScope.drawShorts(
@@ -627,28 +578,6 @@ private fun DrawScope.drawShorts(
 }
 
 // 侧视图短裤:简化为带圆角的矩形(看不到 V 字)
-private fun DrawScope.drawShortsSide(
-    bodyColor: Color,
-    waistColor: Color,
-    centerX: Float,
-    topY: Float,
-    width: Float,
-    height: Float
-) {
-    val x = centerX - width / 2f
-    val cr = width * 0.18f
-    drawRoundRect(
-        color = bodyColor,
-        topLeft = Offset(x, topY),
-        size = Size(width, height),
-        cornerRadius = CornerRadius(cr, cr)
-    )
-    drawRect(
-        color = waistColor,
-        topLeft = Offset(x, topY),
-        size = Size(width, height * 0.14f)
-    )
-}
 
 @Composable
 private fun HotspotOverlay(
@@ -1015,6 +944,266 @@ private fun SymptomInputCard(
             }
         }
     }
+}
+
+
+
+
+@Composable
+private fun ClothingOverlay(
+    overlaySpec: BodyOverlaySpec,
+    side: String
+) {
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+
+    val mainFabric = Color(0xFF3A3F46).copy(alpha = 0.96f)
+    val darkPanel = Color(0xFF111827).copy(alpha = 0.98f)
+    val waistBand = Color(0xFF0F172A).copy(alpha = 0.98f)
+    val seamColor = Color(0xFF6B7280).copy(alpha = 0.70f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { canvasSize = it }
+    ) {
+        if (canvasSize.width == 0 || canvasSize.height == 0) return@Box
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val bfL = canvasSize.width * overlaySpec.bounds.leftRatio
+            val bfT = canvasSize.height * overlaySpec.bounds.topRatio
+            val bfW = canvasSize.width * overlaySpec.bounds.widthRatio
+            val bfH = canvasSize.height * overlaySpec.bounds.heightRatio
+
+            when (side) {
+                "Front", "Back" -> {
+                    drawFittedBoxerBriefs(
+                        mainColor = mainFabric,
+                        panelColor = darkPanel,
+                        waistColor = waistBand,
+                        seamColor = seamColor,
+                        centerX = bfL + bfW * 0.50f,
+                        topY = bfT + bfH * 0.425f,
+                        width = bfW * 0.34f,
+                        height = bfH * 0.205f
+                    )
+                }
+
+                "Left", "Right" -> {
+                    val sideCenter = if (side == "Left") 0.55f else 0.45f
+
+                    drawFittedBoxerBriefsSide(
+                        mainColor = mainFabric,
+                        panelColor = darkPanel,
+                        waistColor = waistBand,
+                        centerX = bfL + bfW * sideCenter,
+                        topY = bfT + bfH * 0.425f,
+                        width = bfW * 0.17f,
+                        height = bfH * 0.205f
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawFittedBoxerBriefs(
+    mainColor: Color,
+    panelColor: Color,
+    waistColor: Color,
+    seamColor: Color,
+    centerX: Float,
+    topY: Float,
+    width: Float,
+    height: Float
+) {
+    val x = centerX - width / 2f
+    val y = topY
+    val w = width
+    val h = height
+
+    val waistH = h * 0.16f
+    val bottomY = y + h
+    val bodyTop = y + waistH
+
+    val bodyPath = Path().apply {
+        moveTo(x + w * 0.06f, bodyTop)
+
+        cubicTo(
+            x + w * 0.20f, y + h * 0.15f,
+            x + w * 0.80f, y + h * 0.15f,
+            x + w * 0.94f, bodyTop
+        )
+
+        cubicTo(
+            x + w * 0.98f, y + h * 0.38f,
+            x + w * 0.91f, y + h * 0.76f,
+            x + w * 0.82f, y + h * 0.96f
+        )
+
+        lineTo(x + w * 0.58f, y + h * 0.96f)
+
+        cubicTo(
+            x + w * 0.56f, y + h * 0.79f,
+            x + w * 0.54f, y + h * 0.66f,
+            x + w * 0.50f, y + h * 0.58f
+        )
+
+        cubicTo(
+            x + w * 0.46f, y + h * 0.66f,
+            x + w * 0.44f, y + h * 0.79f,
+            x + w * 0.42f, y + h * 0.96f
+        )
+
+        lineTo(x + w * 0.18f, y + h * 0.96f)
+
+        cubicTo(
+            x + w * 0.09f, y + h * 0.76f,
+            x + w * 0.02f, y + h * 0.38f,
+            x + w * 0.06f, bodyTop
+        )
+
+        close()
+    }
+
+    drawPath(bodyPath, mainColor)
+
+    val leftPanel = Path().apply {
+        moveTo(x + w * 0.06f, bodyTop)
+        cubicTo(
+            x + w * 0.12f, y + h * 0.40f,
+            x + w * 0.13f, y + h * 0.73f,
+            x + w * 0.18f, y + h * 0.96f
+        )
+        lineTo(x + w * 0.36f, y + h * 0.96f)
+        cubicTo(
+            x + w * 0.31f, y + h * 0.72f,
+            x + w * 0.28f, y + h * 0.42f,
+            x + w * 0.29f, bodyTop
+        )
+        close()
+    }
+
+    val rightPanel = Path().apply {
+        moveTo(x + w * 0.94f, bodyTop)
+        cubicTo(
+            x + w * 0.88f, y + h * 0.40f,
+            x + w * 0.87f, y + h * 0.73f,
+            x + w * 0.82f, y + h * 0.96f
+        )
+        lineTo(x + w * 0.64f, y + h * 0.96f)
+        cubicTo(
+            x + w * 0.69f, y + h * 0.72f,
+            x + w * 0.72f, y + h * 0.42f,
+            x + w * 0.71f, bodyTop
+        )
+        close()
+    }
+
+    drawPath(leftPanel, panelColor.copy(alpha = 0.72f))
+    drawPath(rightPanel, panelColor.copy(alpha = 0.72f))
+
+    val pouchPath = Path().apply {
+        moveTo(x + w * 0.43f, bodyTop + h * 0.03f)
+        cubicTo(
+            x + w * 0.46f, y + h * 0.45f,
+            x + w * 0.46f, y + h * 0.62f,
+            x + w * 0.50f, y + h * 0.72f
+        )
+        cubicTo(
+            x + w * 0.54f, y + h * 0.62f,
+            x + w * 0.54f, y + h * 0.45f,
+            x + w * 0.57f, bodyTop + h * 0.03f
+        )
+        close()
+    }
+
+    drawPath(pouchPath, Color(0xFF4B5563).copy(alpha = 0.45f))
+
+    drawRoundRect(
+        color = waistColor,
+        topLeft = Offset(x, y),
+        size = Size(w, waistH),
+        cornerRadius = CornerRadius(w * 0.08f, w * 0.08f)
+    )
+
+    drawRect(
+        color = Color.White.copy(alpha = 0.10f),
+        topLeft = Offset(x, y + waistH * 0.18f),
+        size = Size(w, waistH * 0.18f)
+    )
+
+    drawLine(
+        color = seamColor,
+        start = Offset(x + w * 0.50f, bodyTop + h * 0.03f),
+        end = Offset(x + w * 0.50f, y + h * 0.88f),
+        strokeWidth = w * 0.012f
+    )
+
+    drawLine(
+        color = Color.Black.copy(alpha = 0.25f),
+        start = Offset(x + w * 0.42f, y + h * 0.96f),
+        end = Offset(x + w * 0.50f, y + h * 0.58f),
+        strokeWidth = w * 0.010f
+    )
+
+    drawLine(
+        color = Color.Black.copy(alpha = 0.25f),
+        start = Offset(x + w * 0.58f, y + h * 0.96f),
+        end = Offset(x + w * 0.50f, y + h * 0.58f),
+        strokeWidth = w * 0.010f
+    )
+}
+
+private fun DrawScope.drawFittedBoxerBriefsSide(
+    mainColor: Color,
+    panelColor: Color,
+    waistColor: Color,
+    centerX: Float,
+    topY: Float,
+    width: Float,
+    height: Float
+) {
+    val x = centerX - width / 2f
+    val y = topY
+    val w = width
+    val h = height
+
+    val waistH = h * 0.16f
+
+    val bodyPath = Path().apply {
+        moveTo(x + w * 0.10f, y + waistH)
+        quadraticBezierTo(x + w * 0.50f, y + h * 0.08f, x + w * 0.90f, y + waistH)
+        cubicTo(x + w * 0.94f, y + h * 0.38f, x + w * 0.86f, y + h * 0.80f, x + w * 0.78f, y + h * 0.96f)
+        lineTo(x + w * 0.22f, y + h * 0.96f)
+        cubicTo(x + w * 0.14f, y + h * 0.80f, x + w * 0.06f, y + h * 0.38f, x + w * 0.10f, y + waistH)
+        close()
+    }
+
+    drawPath(bodyPath, mainColor)
+
+    drawPath(
+        Path().apply {
+            moveTo(x + w * 0.08f, y + waistH)
+            cubicTo(x + w * 0.18f, y + h * 0.35f, x + w * 0.20f, y + h * 0.75f, x + w * 0.24f, y + h * 0.96f)
+            lineTo(x + w * 0.42f, y + h * 0.96f)
+            cubicTo(x + w * 0.35f, y + h * 0.68f, x + w * 0.33f, y + h * 0.36f, x + w * 0.34f, y + waistH)
+            close()
+        },
+        panelColor.copy(alpha = 0.70f)
+    )
+
+    drawRoundRect(
+        color = waistColor,
+        topLeft = Offset(x, y),
+        size = Size(w, waistH),
+        cornerRadius = CornerRadius(w * 0.12f, w * 0.12f)
+    )
+
+    drawRect(
+        color = Color.White.copy(alpha = 0.10f),
+        topLeft = Offset(x, y + waistH * 0.18f),
+        size = Size(w, waistH * 0.18f)
+    )
 }
 
 @Composable
