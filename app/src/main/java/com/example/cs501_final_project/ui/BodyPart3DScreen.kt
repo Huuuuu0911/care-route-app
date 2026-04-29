@@ -2248,33 +2248,37 @@ private fun getBodyOverlaySpec(side: String, useTwoPane: Boolean): BodyOverlaySp
 
     val hotspots = when (side) {
         "Front" -> listOf(
-            BodyHotspot("Forehead", 0.50f, 0.0001f, 0.052f),
+            // head / neck
+            BodyHotspot("Face", 0.50f, 0.000001f, 0.052f),
+            BodyHotspot("Neck", 0.50f, 0.07f, 0.050f),
 
-            BodyHotspot("Neck", 0.50f, 0.17f, 0.050f),
+            // shoulders and arms
+            BodyHotspot("Left Shoulder", 0.31f, 0.155f, 0.050f),
+            BodyHotspot("Right Shoulder", 0.69f, 0.155f, 0.050f),
+            BodyHotspot("Left Arm", 0.065f, 0.155f, 0.048f),
+            BodyHotspot("Right Arm", 0.935f, 0.155f, 0.048f),
 
-            BodyHotspot("Left Shoulder", 0.30f, 0.15f, 0.052f),
-            BodyHotspot("Right Shoulder", 0.70f, 0.15f, 0.052f),
+            // chest
+            BodyHotspot("Left Chest", 0.435f, 0.155f, 0.050f),
+            BodyHotspot("Center Chest", 0.500f, 0.155f, 0.050f),
+            BodyHotspot("Right Chest", 0.565f, 0.155f, 0.050f),
 
-            BodyHotspot("Left Chest", 0.43f, 0.33f, 0.052f),
-            BodyHotspot("Center Chest", 0.50f, 0.34f, 0.052f),
-            BodyHotspot("Right Chest", 0.57f, 0.33f, 0.052f),
+            // abdomen / waist
+            BodyHotspot("Upper Abdomen", 0.500f, 0.305f, 0.050f),
+            BodyHotspot("Left Abdomen", 0.420f, 0.305f, 0.048f),
+            BodyHotspot("Right Abdomen", 0.580f, 0.305f, 0.048f),
 
-            BodyHotspot(" Abdomen", 0.50f, 0.2f, 0.052f),
+            // thighs
+            BodyHotspot("Left Thigh", 0.390f, 0.550f, 0.048f),
+            BodyHotspot("Right Thigh", 0.610f, 0.550f, 0.048f),
 
+            // knees
+            BodyHotspot("Left Knee", 0.405f, 0.715f, 0.046f),
+            BodyHotspot("Right Knee", 0.595f, 0.715f, 0.046f),
 
-            BodyHotspot("Left Arm", 0.06f, 0.15f, 0.050f),
-            BodyHotspot("Right Arm", 0.94f, 0.15f, 0.050f),
-
-
-
-            BodyHotspot("Left Thigh", 0.38f, 0.5f, 0.048f),
-            BodyHotspot("Right Thigh", 0.60f, 0.5f, 0.048f),
-
-            BodyHotspot("Left Knee", 0.40f, 0.65f, 0.046f),
-            BodyHotspot("Right Knee", 0.60f, 0.65f, 0.046f),
-
-            BodyHotspot("Left Shin", 0.40f, 0.80f, 0.044f),
-            BodyHotspot("Right Shin", 0.60f, 0.80f, 0.044f)
+            // lower legs
+            BodyHotspot("Left Shin", 0.405f, 0.855f, 0.044f),
+            BodyHotspot("Right Shin", 0.595f, 0.855f, 0.044f)
         )
 
         "Back" -> listOf(
