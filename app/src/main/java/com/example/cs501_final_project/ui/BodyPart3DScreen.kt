@@ -161,14 +161,22 @@ enum class FollowUpType {
 
 @Composable
 fun BodyPart3DScreen(
-    navController: NavController
+    navController: NavController,
+    profileGender: String = ""
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val useTwoPane = isLandscape && configuration.screenWidthDp >= 720
+    val profileModelGender = remember(profileGender) {
+        normalizeModelGender(profileGender)
+    }
 
     var showBack by rememberSaveable { mutableStateOf(false) }
-    var selectedGender by rememberSaveable { mutableStateOf("Male") }
+    var selectedGender by rememberSaveable { mutableStateOf(profileModelGender) }
+
+    LaunchedEffect(profileModelGender) {
+        selectedGender = profileModelGender
+    }
 
     val currentSide = if (showBack) "Back" else "Front"
     val rotationY = if (showBack) 180f else 0f
@@ -437,6 +445,14 @@ private fun ModelViewerCard(
     }
 }
 
+private fun normalizeModelGender(gender: String): String {
+    val cleaned = gender.trim().lowercase()
+    return when (cleaned) {
+        "female", "f", "woman", "girl" -> "Female"
+        else -> "Male"
+    }
+}
+
 private fun getBodyModelConfig(gender: String): BodyModelConfig {
     return if (gender == "Female") {
         BodyModelConfig(
@@ -593,6 +609,40 @@ private fun ChipRows(
 }
 
 @Composable
+private fun MultiSelectChipRows(
+    items: List<String>,
+    selectedItems: List<String>,
+    onItemClick: (String) -> Unit
+) {
+    val rows = remember(items) { items.chunked(3) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        rows.forEach { rowItems ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { item ->
+                    FilterChip(
+                        selected = item in selectedItems,
+                        onClick = { onItemClick(item) },
+                        label = { Text(item) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFEAE6FF),
+                            selectedLabelColor = Color(0xFF4B3BC8),
+                            containerColor = Color(0xFFF6F8FC),
+                            labelColor = Color(0xFF48556A)
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun HotspotOverlay(
     overlaySpec: BodyOverlaySpec,
     onTap: (String) -> Unit
@@ -665,7 +715,7 @@ fun DetailScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val useTwoPane = isLandscape && configuration.screenWidthDp >= 720
 
-    var selectedDetail by rememberSaveable(part) { mutableStateOf(part) }
+    var selectedDetails by rememberSaveable(part) { mutableStateOf(listOf(part)) }
     var symptomText by rememberSaveable(part) { mutableStateOf("") }
     var painLevel by rememberSaveable(part) { mutableFloatStateOf(5f) }
 
@@ -677,7 +727,12 @@ fun DetailScreen(
         )
     )
 
-    val detailOptions = remember(part) { listOf(part) + getDetailOptions(part) }
+    val detailOptions = remember(part) {
+        (listOf(part) + getDetailOptions(part)).distinct()
+    }
+    val selectedAreaText = remember(part, selectedDetails) {
+        selectedDetails.ifEmpty { listOf(part) }.joinToString(", ")
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -693,7 +748,7 @@ fun DetailScreen(
             ) {
                 HeaderCard(
                     title = "Symptom Check",
-                    subtitle = selectedDetail.ifBlank { part },
+                    subtitle = selectedAreaText,
                     gradient = topGradient
                 )
 
@@ -709,8 +764,15 @@ fun DetailScreen(
                     ) {
                         DetailAreaCard(
                             detailOptions = detailOptions,
-                            selectedDetail = selectedDetail,
-                            onSelect = { selectedDetail = it }
+                            selectedDetails = selectedDetails,
+                            selectedAreaText = selectedAreaText,
+                            onToggle = { item ->
+                                selectedDetails = if (item in selectedDetails) {
+                                    selectedDetails - item
+                                } else {
+                                    selectedDetails + item
+                                }
+                            }
                         )
 
                         PainLevelCard(
@@ -729,7 +791,7 @@ fun DetailScreen(
                             symptomText = symptomText,
                             onSymptomChange = { symptomText = it },
                             onContinue = {
-                                val partEncoded = Uri.encode(selectedDetail.ifBlank { part })
+                                val partEncoded = Uri.encode(selectedAreaText)
                                 val symptomEncoded = Uri.encode(symptomText)
                                 navController.navigate("follow_up/$partEncoded/$symptomEncoded/${painLevel.toInt()}")
                             }
@@ -755,14 +817,21 @@ fun DetailScreen(
             ) {
                 HeaderCard(
                     title = "Symptom Check",
-                    subtitle = selectedDetail.ifBlank { part },
+                    subtitle = selectedAreaText,
                     gradient = topGradient
                 )
 
                 DetailAreaCard(
                     detailOptions = detailOptions,
-                    selectedDetail = selectedDetail,
-                    onSelect = { selectedDetail = it }
+                    selectedDetails = selectedDetails,
+                    selectedAreaText = selectedAreaText,
+                    onToggle = { item ->
+                        selectedDetails = if (item in selectedDetails) {
+                            selectedDetails - item
+                        } else {
+                            selectedDetails + item
+                        }
+                    }
                 )
 
                 PainLevelCard(
@@ -774,7 +843,7 @@ fun DetailScreen(
                     symptomText = symptomText,
                     onSymptomChange = { symptomText = it },
                     onContinue = {
-                        val partEncoded = Uri.encode(selectedDetail.ifBlank { part })
+                        val partEncoded = Uri.encode(selectedAreaText)
                         val symptomEncoded = Uri.encode(symptomText)
                         navController.navigate("follow_up/$partEncoded/$symptomEncoded/${painLevel.toInt()}")
                     }
@@ -794,8 +863,9 @@ fun DetailScreen(
 @Composable
 private fun DetailAreaCard(
     detailOptions: List<String>,
-    selectedDetail: String,
-    onSelect: (String) -> Unit
+    selectedDetails: List<String>,
+    selectedAreaText: String,
+    onToggle: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -808,14 +878,14 @@ private fun DetailAreaCard(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = "Choose a more specific area",
+                text = "Choose one or more specific areas",
                 style = MaterialTheme.typography.titleMedium
             )
 
-            ChipRows(
+            MultiSelectChipRows(
                 items = detailOptions,
-                selectedItem = selectedDetail,
-                onItemClick = onSelect
+                selectedItems = selectedDetails,
+                onItemClick = onToggle
             )
 
             Card(
@@ -830,13 +900,13 @@ private fun DetailAreaCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Selected Area",
+                        text = "Selected Areas",
                         style = MaterialTheme.typography.labelLarge,
                         color = Color(0xFF667085)
                     )
 
                     Text(
-                        text = selectedDetail.ifBlank { "Nothing selected yet" },
+                        text = selectedAreaText,
                         style = MaterialTheme.typography.titleMedium,
                         color = Color(0xFF1F2937)
                     )

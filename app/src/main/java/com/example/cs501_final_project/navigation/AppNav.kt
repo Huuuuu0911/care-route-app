@@ -255,7 +255,10 @@ private fun MainAppNav(
             }
 
             composable("body3d") {
-                BodyPart3DScreen(navController = navController)
+                BodyPart3DScreen(
+                    navController = navController,
+                    profileGender = viewModel.activePatientContext().gender
+                )
             }
 
             composable(
