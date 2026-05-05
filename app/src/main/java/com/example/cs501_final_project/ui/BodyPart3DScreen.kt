@@ -505,7 +505,7 @@ private fun VisibleAreasCard(
 
             ChipRows(
                 items = hotspots.map { it.name },
-                selectedItem = "",
+                selectedItems = emptySet(),
                 onItemClick = { name ->
                     navController.navigate("detail/${Uri.encode(name)}")
                 }
@@ -517,7 +517,7 @@ private fun VisibleAreasCard(
 @Composable
 private fun ChipRows(
     items: List<String>,
-    selectedItem: String,
+    selectedItems: Set<String>,
     onItemClick: (String) -> Unit
 ) {
     val rows = remember(items) { items.chunked(3) }
@@ -532,7 +532,7 @@ private fun ChipRows(
             ) {
                 rowItems.forEach { item ->
                     FilterChip(
-                        selected = selectedItem == item,
+                        selected = selectedItems.contains(item),
                         onClick = { onItemClick(item) },
                         label = { Text(item) },
                         colors = FilterChipDefaults.filterChipColors(
@@ -902,9 +902,13 @@ fun DetailScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val useTwoPane = isLandscape && configuration.screenWidthDp >= 720
 
-    var selectedDetail by rememberSaveable(part) { mutableStateOf("") }
+    var selectedDetails by rememberSaveable(part) { mutableStateOf(emptyList<String>()) }
     var symptomText by rememberSaveable(part) { mutableStateOf("") }
     var painLevel by rememberSaveable(part) { mutableFloatStateOf(5f) }
+
+    val selectedAreaLabel = selectedDetails
+        .ifEmpty { listOf(part) }
+        .joinToString(", ")
 
     val bgColor = MaterialTheme.colorScheme.background
     val topGradient = Brush.horizontalGradient(
@@ -930,7 +934,7 @@ fun DetailScreen(
             ) {
                 HeaderCard(
                     title = "Symptom Check",
-                    subtitle = selectedDetail.ifBlank { part },
+                    subtitle = selectedAreaLabel,
                     gradient = topGradient
                 )
 
@@ -946,8 +950,10 @@ fun DetailScreen(
                     ) {
                         DetailAreaCard(
                             detailOptions = detailOptions,
-                            selectedDetail = selectedDetail,
-                            onSelect = { selectedDetail = it }
+                            selectedDetails = selectedDetails,
+                            onToggle = { detail ->
+                                selectedDetails = toggleDetailSelection(selectedDetails, detail)
+                            }
                         )
 
                         PainLevelCard(
@@ -966,7 +972,7 @@ fun DetailScreen(
                             symptomText = symptomText,
                             onSymptomChange = { symptomText = it },
                             onContinue = {
-                                val partEncoded = Uri.encode(selectedDetail.ifBlank { part })
+                                val partEncoded = Uri.encode(selectedAreaLabel)
                                 val symptomEncoded = Uri.encode(symptomText)
                                 navController.navigate("follow_up/$partEncoded/$symptomEncoded/${painLevel.toInt()}")
                             }
@@ -992,14 +998,16 @@ fun DetailScreen(
             ) {
                 HeaderCard(
                     title = "Symptom Check",
-                    subtitle = selectedDetail.ifBlank { part },
+                    subtitle = selectedAreaLabel,
                     gradient = topGradient
                 )
 
                 DetailAreaCard(
                     detailOptions = detailOptions,
-                    selectedDetail = selectedDetail,
-                    onSelect = { selectedDetail = it }
+                    selectedDetails = selectedDetails,
+                    onToggle = { detail ->
+                        selectedDetails = toggleDetailSelection(selectedDetails, detail)
+                    }
                 )
 
                 PainLevelCard(
@@ -1011,7 +1019,7 @@ fun DetailScreen(
                     symptomText = symptomText,
                     onSymptomChange = { symptomText = it },
                     onContinue = {
-                        val partEncoded = Uri.encode(selectedDetail.ifBlank { part })
+                        val partEncoded = Uri.encode(selectedAreaLabel)
                         val symptomEncoded = Uri.encode(symptomText)
                         navController.navigate("follow_up/$partEncoded/$symptomEncoded/${painLevel.toInt()}")
                     }
@@ -1028,11 +1036,22 @@ fun DetailScreen(
     }
 }
 
+private fun toggleDetailSelection(
+    current: List<String>,
+    detail: String
+): List<String> {
+    return if (current.contains(detail)) {
+        current.filterNot { it == detail }
+    } else {
+        current + detail
+    }
+}
+
 @Composable
 private fun DetailAreaCard(
     detailOptions: List<String>,
-    selectedDetail: String,
-    onSelect: (String) -> Unit
+    selectedDetails: List<String>,
+    onToggle: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1045,14 +1064,20 @@ private fun DetailAreaCard(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = "Choose a more specific area",
+                text = "Choose one or more specific areas",
                 style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = "You can select multiple details. Tap a selected chip again to remove it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF667085)
             )
 
             ChipRows(
                 items = detailOptions,
-                selectedItem = selectedDetail,
-                onItemClick = onSelect
+                selectedItems = selectedDetails.toSet(),
+                onItemClick = onToggle
             )
 
             Card(
@@ -1067,13 +1092,17 @@ private fun DetailAreaCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Selected Area",
+                        text = "Selected Areas",
                         style = MaterialTheme.typography.labelLarge,
                         color = Color(0xFF667085)
                     )
 
                     Text(
-                        text = selectedDetail.ifBlank { "Nothing selected yet" },
+                        text = if (selectedDetails.isEmpty()) {
+                            "Nothing selected yet"
+                        } else {
+                            selectedDetails.joinToString(", ")
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         color = Color(0xFF1F2937)
                     )
