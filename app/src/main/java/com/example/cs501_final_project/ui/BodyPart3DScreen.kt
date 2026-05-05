@@ -120,7 +120,7 @@ private const val MODEL_VERTICAL_OFFSET_Y = -0.3f
 // Larger number: Larger character
 // Smaller number: Smaller character
 private const val MALE_MODEL_SCALE = 0.63f
-private const val FEMALE_MODEL_SCALE = 0.63f
+private const val FEMALE_MODEL_SCALE = 0.70f
 
 // Fixed
 private const val MODEL_CENTER_ORIGIN_Y = -1.0f
@@ -665,7 +665,7 @@ fun DetailScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val useTwoPane = isLandscape && configuration.screenWidthDp >= 720
 
-    var selectedDetail by rememberSaveable(part) { mutableStateOf("") }
+    var selectedDetail by rememberSaveable(part) { mutableStateOf(part) }
     var symptomText by rememberSaveable(part) { mutableStateOf("") }
     var painLevel by rememberSaveable(part) { mutableFloatStateOf(5f) }
 
@@ -677,7 +677,7 @@ fun DetailScreen(
         )
     )
 
-    val detailOptions = getDetailOptions(part)
+    val detailOptions = remember(part) { listOf(part) + getDetailOptions(part) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -1976,84 +1976,36 @@ private fun getBodyOverlaySpec(
 ): BodyOverlaySpec {
     val isFemale = gender == "Female"
 
-    val bounds = when {
-        useTwoPane && isFemale -> BodyFrameBounds(
-            leftRatio = 0.225f,
-            topRatio = 0.1f,
-            widthRatio = 0.550f,
-            heightRatio = 0.805f
+    // This frame covers the visible full-body model, including arms and legs.
+    // Keep x/y hotspots below relative to this frame: x = left/right, y = up/down.
+    val bounds = if (useTwoPane) {
+        BodyFrameBounds(
+            leftRatio = 0.11f,
+            topRatio = 0.045f,
+            widthRatio = 0.78f,
+            heightRatio = 0.855f
         )
-
-        useTwoPane -> BodyFrameBounds(
-            leftRatio = 0.215f,
-            topRatio = 0.115f,
-            widthRatio = 0.570f,
-            heightRatio = 0.805f
-        )
-
-        isFemale -> BodyFrameBounds(
-            leftRatio = 0.225f,
-            topRatio = 0.115f,
-            widthRatio = 0.550f,
-            heightRatio = 0.805f
-        )
-
-        else -> BodyFrameBounds(
-            leftRatio = 0.215f,
-            topRatio = 0.115f,
-            widthRatio = 0.570f,
-            heightRatio = 0.805f
+    } else {
+        BodyFrameBounds(
+            leftRatio = 0.10f,
+            topRatio = 0.035f,
+            widthRatio = 0.80f,
+            heightRatio = 0.875f
         )
     }
 
     val hotspots = when (side) {
-        "Front" -> listOf(
-            BodyHotspot("Face", 0.500f, 0.045f, 0.052f),
-            BodyHotspot("Neck", 0.500f, 0.135f, 0.050f),
+        "Front" -> if (isFemale) {
+            frontFemaleHotspots()
+        } else {
+            frontMaleHotspots()
+        }
 
-            BodyHotspot("Left Shoulder", 0.325f, 0.205f, 0.050f),
-            BodyHotspot("Right Shoulder", 0.675f, 0.205f, 0.050f),
-
-            BodyHotspot("Left Arm", 0.130f, 0.375f, 0.048f),
-            BodyHotspot("Right Arm", 0.870f, 0.375f, 0.048f),
-
-            BodyHotspot("Left Chest", 0.430f, 0.285f, 0.050f),
-            BodyHotspot("Center Chest", 0.500f, 0.285f, 0.050f),
-            BodyHotspot("Right Chest", 0.570f, 0.285f, 0.050f),
-
-            BodyHotspot("Left Abdomen", 0.430f, 0.420f, 0.048f),
-            BodyHotspot("Upper Abdomen", 0.500f, 0.420f, 0.050f),
-            BodyHotspot("Right Abdomen", 0.570f, 0.420f, 0.048f),
-
-            BodyHotspot("Left Thigh", 0.425f, 0.600f, 0.048f),
-            BodyHotspot("Right Thigh", 0.575f, 0.600f, 0.048f),
-
-            BodyHotspot("Left Knee", 0.435f, 0.725f, 0.046f),
-            BodyHotspot("Right Knee", 0.565f, 0.725f, 0.046f),
-
-            BodyHotspot("Left Shin", 0.445f, 0.855f, 0.044f),
-            BodyHotspot("Right Shin", 0.555f, 0.855f, 0.044f)
-        )
-
-        "Back" -> listOf(
-            BodyHotspot("Back Head", 0.500f, 0.045f, 0.060f),
-            BodyHotspot("Back Neck", 0.500f, 0.135f, 0.055f),
-
-            BodyHotspot("Left Upper Back", 0.430f, 0.245f, 0.058f),
-            BodyHotspot("Right Upper Back", 0.570f, 0.245f, 0.058f),
-
-            BodyHotspot("Mid Back", 0.500f, 0.335f, 0.058f),
-            BodyHotspot("Lower Back", 0.500f, 0.445f, 0.058f),
-
-            BodyHotspot("Left Glute", 0.430f, 0.535f, 0.056f),
-            BodyHotspot("Right Glute", 0.570f, 0.535f, 0.056f),
-
-            BodyHotspot("Left Hamstring", 0.425f, 0.650f, 0.055f),
-            BodyHotspot("Right Hamstring", 0.575f, 0.650f, 0.055f),
-
-            BodyHotspot("Left Calf", 0.445f, 0.835f, 0.050f),
-            BodyHotspot("Right Calf", 0.555f, 0.835f, 0.050f)
-        )
+        "Back" -> if (isFemale) {
+            backFemaleHotspots()
+        } else {
+            backMaleHotspots()
+        }
 
         else -> emptyList()
     }
@@ -2061,6 +2013,106 @@ private fun getBodyOverlaySpec(
     return BodyOverlaySpec(
         bounds = bounds,
         hotspots = hotspots
+    )
+}
+
+private fun frontMaleHotspots(): List<BodyHotspot> {
+    return listOf(
+        BodyHotspot("Face", 0.500f, 0.13f, 0.052f),
+        BodyHotspot("Neck", 0.500f, 0.195f, 0.050f),
+
+        BodyHotspot("Left Shoulder", 0.42f, 0.205f, 0.050f),
+        BodyHotspot("Right Shoulder", 0.58f, 0.205f, 0.050f),
+        BodyHotspot("Left Arm", 0.30f, 0.335f, 0.048f),
+        BodyHotspot("Right Arm", 0.70f, 0.335f, 0.048f),
+
+        BodyHotspot("Left Chest", 0.445f, 0.280f, 0.050f),
+        BodyHotspot("Center Chest", 0.500f, 0.280f, 0.050f),
+        BodyHotspot("Right Chest", 0.555f, 0.280f, 0.050f),
+
+        BodyHotspot("Left Abdomen", 0.430f, 0.400f, 0.048f),
+        BodyHotspot("Upper Abdomen", 0.500f, 0.400f, 0.050f),
+        BodyHotspot("Right Abdomen", 0.570f, 0.400f, 0.048f),
+
+        BodyHotspot("Left Thigh", 0.43f, 0.555f, 0.048f),
+        BodyHotspot("Right Thigh", 0.57f, 0.555f, 0.048f),
+
+        BodyHotspot("Left Knee", 0.42f, 0.645f, 0.046f),
+        BodyHotspot("Right Knee", 0.58f, 0.645f, 0.046f),
+
+        BodyHotspot("Left Shin", 0.40f, 0.785f, 0.044f),
+        BodyHotspot("Right Shin", 0.60f, 0.785f, 0.044f)
+    )
+}
+
+private fun frontFemaleHotspots(): List<BodyHotspot> {
+    return listOf(
+        BodyHotspot("Face", 0.500f, 0.040f, 0.052f),
+        BodyHotspot("Neck", 0.500f, 0.100f, 0.050f),
+
+        BodyHotspot("Left Shoulder", 0.400f, 0.130f, 0.050f),
+        BodyHotspot("Right Shoulder", 0.600f, 0.130f, 0.050f),
+        BodyHotspot("Left Arm", 0.320f, 0.285f, 0.048f),
+        BodyHotspot("Right Arm", 0.680f, 0.285f, 0.048f),
+
+        BodyHotspot("Left Chest", 0.445f, 0.170f, 0.050f),
+        BodyHotspot("Center Chest", 0.500f, 0.170f, 0.050f),
+        BodyHotspot("Right Chest", 0.555f, 0.170f, 0.050f),
+
+        BodyHotspot("Left Abdomen", 0.440f, 0.300f, 0.048f),
+        BodyHotspot("Upper Abdomen", 0.500f, 0.300f, 0.050f),
+        BodyHotspot("Right Abdomen", 0.560f, 0.300f, 0.048f),
+
+        BodyHotspot("Left Thigh", 0.455f, 0.480f, 0.048f),
+        BodyHotspot("Right Thigh", 0.545f, 0.480f, 0.048f),
+
+        BodyHotspot("Left Knee", 0.455f, 0.605f, 0.046f),
+        BodyHotspot("Right Knee", 0.545f, 0.605f, 0.046f),
+
+        BodyHotspot("Left Shin", 0.460f, 0.730f, 0.044f),
+        BodyHotspot("Right Shin", 0.540f, 0.730f, 0.044f)
+    )
+}
+
+private fun backMaleHotspots(): List<BodyHotspot> {
+    return listOf(
+        BodyHotspot("Back Head", 0.500f, 0.13f, 0.060f),
+        BodyHotspot("Back Neck", 0.500f, 0.195f, 0.055f),
+
+        BodyHotspot("Left Upper Back", 0.430f, 0.245f, 0.058f),
+        BodyHotspot("Right Upper Back", 0.570f, 0.245f, 0.058f),
+        BodyHotspot("Mid Back", 0.500f, 0.285f, 0.058f),
+        BodyHotspot("Lower Back", 0.500f, 0.355f, 0.058f),
+
+        BodyHotspot("Left Glute", 0.440f, 0.580f, 0.056f),
+        BodyHotspot("Right Glute", 0.560f, 0.580f, 0.056f),
+
+        BodyHotspot("Left Hamstring", 0.435f, 0.670f, 0.055f),
+        BodyHotspot("Right Hamstring", 0.565f, 0.670f, 0.055f),
+
+        BodyHotspot("Left Calf", 0.415f, 0.770f, 0.050f),
+        BodyHotspot("Right Calf", 0.585f, 0.770f, 0.050f)
+    )
+}
+
+private fun backFemaleHotspots(): List<BodyHotspot> {
+    return listOf(
+        BodyHotspot("Back Head", 0.500f, 0.040f, 0.060f),
+        BodyHotspot("Back Neck", 0.500f, 0.100f, 0.055f),
+
+        BodyHotspot("Left Upper Back", 0.440f, 0.150f, 0.058f),
+        BodyHotspot("Right Upper Back", 0.560f, 0.150f, 0.058f),
+        BodyHotspot("Mid Back", 0.500f, 0.200f, 0.058f),
+        BodyHotspot("Lower Back", 0.500f, 0.280f, 0.058f),
+
+        BodyHotspot("Left Glute", 0.445f, 0.450f, 0.056f),
+        BodyHotspot("Right Glute", 0.555f, 0.450f, 0.056f),
+
+        BodyHotspot("Left Hamstring", 0.455f, 0.580f, 0.055f),
+        BodyHotspot("Right Hamstring", 0.545f, 0.580f, 0.055f),
+
+        BodyHotspot("Left Calf", 0.460f, 0.680f, 0.050f),
+        BodyHotspot("Right Calf", 0.540f, 0.680f, 0.050f)
     )
 }
 
