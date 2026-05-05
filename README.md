@@ -658,27 +658,6 @@ Target SDK:
 
 ---
 
-## Main Demo Flow
-
-A suggested demo flow:
-
-1. Launch the app.
-2. Create an account or sign in.
-3. Open the Home screen.
-4. Tap the main symptom-check button.
-5. Select Male or Female model.
-6. Tap a hotspot on the 3D body.
-7. Confirm the selected body area.
-8. Enter a symptom description.
-9. Select pain level.
-10. Answer Gemini follow-up questions.
-11. View the care recommendation.
-12. Open the suggested map search.
-13. Return to History and confirm the saved record.
-14. Open Family Hub and show family creation or member context switching.
-
----
-
 ## Medical Safety and Scope
 
 CareRoute does not provide a medical diagnosis. It is a health-navigation support tool.
