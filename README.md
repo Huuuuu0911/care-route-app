@@ -228,10 +228,21 @@ Jiahao focused on the main app structure, Compose UI, navigation flow, AI integr
 - Designing and revising the Family Hub structure
 
 ### Zhi Gao
+Zhi focused on the main app framework, core navigation, 3D body interaction, symptom-check flow, data persistence, UI integration, and project documentation. His contributions included:
 
-Zhi Gao contributed to app testing, UI feedback, project debugging, and presentation preparation. His work helped improve the usability and consistency of the app. He also helped test the user flow and identify areas where the app needed clearer navigation or better visual organization.
-
-Overall, the project required significant collaboration, especially during debugging and integration. Many issues involved connecting multiple systems together, such as Firebase Auth, Firestore, Gemini API, Navigation Compose, and Google Maps.
+- Building the basic app framework and organizing the main Android project structure
+- Creating and improving the core navigation flow between Home, History, Map, Settings, 3D Body Viewer, Symptom Check, Result, and Family Hub screens
+- Building and improving major Compose screens and reusable UI structure
+- Implementing and improving the 3D body viewer
+- Adding and updating male and female body models
+- Adjusting model size and aligning body hotspot mappings
+- Improving body-part selection, detailed symptom area selection, and multi-selection support
+- Implementing parts of the symptom check flow, including pain level input, symptom detail input, and follow-up intake
+- Helping integrate the Gemini-based assessment flow and structured result UI
+- Adding Room and DataStore local persistence and connecting profile, history, medical record, and family-related data layers
+- Updating ViewModel and navigation logic to support stored user data and app state
+- Supporting Family Hub features, including family data flow, leave family, and disband family actions
+- Fixing UI, navigation, model alignment, and compilation issues during integration
 
 ---
 
