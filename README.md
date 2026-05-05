@@ -759,24 +759,26 @@ Main contributions included:
 
 ### Zhi Gao
 
-Zhi focused on the main app framework, core navigation, 3D interaction, symptom-check flow, persistence, UI integration, and final documentation.
+Zhi built the main foundation of CareRoute, including the overall app framework, screen design, navigation flow, 3D body interaction, symptom-check experience, local persistence, and final documentation.
 
-Main contributions included:
-
-- Building the Android project structure
-- Creating and improving the core navigation flow
-- Building and improving major Compose screens
-- Implementing the 3D body viewer
-- Adding and updating male and female body models
-- Adjusting model size and vertical positioning
-- Calibrating body hotspot mappings
-- Connecting hotspot selection to Symptom Check
-- Improving body-part selection and symptom detail intake
-- Adding Room and DataStore local persistence
+- Building the main Android project framework and organizing the core app structure
+- Designing the overall screen flow and connecting the main user journey from Home to final care recommendation
+- Connecting all major screens through the navigation system
+- Building and wiring routes for Home, 3D Body Viewer, Symptom Detail, Follow-up Questions, Result, Map, History, Settings, and Family Hub
+- Designing and refining the main Compose UI screens for a consistent healthcare app style
+- Implementing the 3D Body Viewer screen
+- Adding and updating male and female 3D body models
+- Calibrating model size, model position, and hotspot alignment
+- Connecting body hotspot clicks to the Symptom Check screen
+- Making selected body areas carry into the next symptom-intake step
+- Improving the body-part and symptom-detail selection flow
+- Supporting the multi-step symptom-check process from body selection to AI follow-up questions
+- Helping connect Gemini-based symptom checking with the app UI flow
+- Adding and improving Room and DataStore local persistence
 - Connecting profile, history, medical record, and family-related data layers
-- Supporting Family Hub actions such as leave family and disband family
-- Fixing UI, navigation, model alignment, and compilation issues during integration
-- Preparing and revising final project documentation
+- Supporting Family Hub actions such as leaving a family and disbanding a family
+- Debugging UI, navigation, model alignment, Firebase, and integration issues
+- Preparing and revising the final README and project documentation
 
 ---
 
