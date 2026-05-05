@@ -1,5 +1,4 @@
 package com.example.cs501_final_project.ui
-import io.github.sceneview.math.Position
 import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.animation.core.LinearEasing
@@ -9,7 +8,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,7 +57,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,13 +65,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -98,6 +90,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.math.min
 import kotlin.math.roundToInt
+import io.github.sceneview.math.Position
 
 private data class BodyFrameBounds(
     val leftRatio: Float,
@@ -116,6 +109,26 @@ data class BodyHotspot(
 private data class BodyOverlaySpec(
     val bounds: BodyFrameBounds,
     val hotspots: List<BodyHotspot>
+)
+
+// Modify only this: Character's vertical position
+// Smaller / more negative numbers: Character moves lower
+// Larger numbers / closer to 0: Character moves higher
+private const val MODEL_VERTICAL_OFFSET_Y = -0.3f
+
+// Character Size
+// Larger number: Larger character
+// Smaller number: Smaller character
+private const val MALE_MODEL_SCALE = 0.63f
+private const val FEMALE_MODEL_SCALE = 0.63f
+
+// Fixed
+private const val MODEL_CENTER_ORIGIN_Y = -1.0f
+
+private data class BodyModelConfig(
+    val scaleToUnits: Float,
+    val centerOriginY: Float,
+    val extraYOffset: Float
 )
 
 data class ParsedGeminiResponse(
@@ -166,8 +179,12 @@ fun BodyPart3DScreen(
         "models/male_model.glb"
     }
 
-    val overlaySpec = remember(currentSide, useTwoPane) {
-        getBodyOverlaySpec(currentSide, useTwoPane)
+    val overlaySpec = remember(currentSide, selectedGender, useTwoPane) {
+        getBodyOverlaySpec(
+            side = currentSide,
+            gender = selectedGender,
+            useTwoPane = useTwoPane
+        )
     }
 
     val bgColor = MaterialTheme.colorScheme.background
@@ -208,7 +225,8 @@ fun BodyPart3DScreen(
                         overlaySpec = overlaySpec,
                         navController = navController,
                         modelHeight = 420.dp,
-                        modelPath = modelPath
+                        modelPath = modelPath,
+                        selectedGender = selectedGender
                     )
                 }
 
@@ -256,7 +274,8 @@ fun BodyPart3DScreen(
                     overlaySpec = overlaySpec,
                     navController = navController,
                     modelHeight = 380.dp,
-                    modelPath = modelPath
+                    modelPath = modelPath,
+                    selectedGender = selectedGender
                 )
 
                 ControlsCard(
@@ -319,10 +338,12 @@ private fun ModelViewerCard(
     overlaySpec: BodyOverlaySpec,
     navController: NavController,
     modelHeight: Dp,
-    modelPath: String
+    modelPath: String,
+    selectedGender: String
 ) {
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
+    val modelConfig = getBodyModelConfig(selectedGender)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -370,10 +391,12 @@ private fun ModelViewerCard(
                     .fillMaxWidth()
                     .height(modelHeight),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFD))
+                colors = CardDefaults.cardColors(containerColor = Color.Black)
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
                 ) {
                     SceneView(
                         modifier = Modifier.fillMaxSize(),
@@ -386,16 +409,21 @@ private fun ModelViewerCard(
                         )?.let { modelInstance ->
                             ModelNode(
                                 modelInstance = modelInstance,
-                                scaleToUnits = 0.72f,
+                                scaleToUnits = modelConfig.scaleToUnits,
+                                centerOrigin = Position(
+                                    x = 0.0f,
+                                    y = modelConfig.centerOriginY,
+                                    z = 0.0f
+                                ),
+                                position = Position(
+                                    x = 0.0f,
+                                    y = modelConfig.extraYOffset,
+                                    z = 0.0f
+                                ),
                                 rotation = Rotation(y = rotationY)
                             )
                         }
                     }
-
-                    ClothingOverlay(
-                        overlaySpec = overlaySpec,
-                        side = currentSide
-                    )
 
                     HotspotOverlay(
                         overlaySpec = overlaySpec,
@@ -406,6 +434,22 @@ private fun ModelViewerCard(
                 }
             }
         }
+    }
+}
+
+private fun getBodyModelConfig(gender: String): BodyModelConfig {
+    return if (gender == "Female") {
+        BodyModelConfig(
+            scaleToUnits = FEMALE_MODEL_SCALE,
+            centerOriginY = MODEL_CENTER_ORIGIN_Y,
+            extraYOffset = MODEL_VERTICAL_OFFSET_Y
+        )
+    } else {
+        BodyModelConfig(
+            scaleToUnits = MALE_MODEL_SCALE,
+            centerOriginY = MODEL_CENTER_ORIGIN_Y,
+            extraYOffset = MODEL_VERTICAL_OFFSET_Y
+        )
     }
 }
 
@@ -505,7 +549,7 @@ private fun VisibleAreasCard(
 
             ChipRows(
                 items = hotspots.map { it.name },
-                selectedItems = emptySet(),
+                selectedItem = "",
                 onItemClick = { name ->
                     navController.navigate("detail/${Uri.encode(name)}")
                 }
@@ -517,7 +561,7 @@ private fun VisibleAreasCard(
 @Composable
 private fun ChipRows(
     items: List<String>,
-    selectedItems: Set<String>,
+    selectedItem: String,
     onItemClick: (String) -> Unit
 ) {
     val rows = remember(items) { items.chunked(3) }
@@ -532,7 +576,7 @@ private fun ChipRows(
             ) {
                 rowItems.forEach { item ->
                     FilterChip(
-                        selected = selectedItems.contains(item),
+                        selected = selectedItem == item,
                         onClick = { onItemClick(item) },
                         label = { Text(item) },
                         colors = FilterChipDefaults.filterChipColors(
@@ -546,287 +590,6 @@ private fun ChipRows(
             }
         }
     }
-}
-
-@Composable
-private fun ClothingOverlay(
-    overlaySpec: BodyOverlaySpec,
-    side: String
-) {
-    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
-
-    val mainFabric = Color(0xFF3A3F46).copy(alpha = 0.96f)
-    val darkPanel = Color(0xFF111827).copy(alpha = 0.98f)
-    val waistBand = Color(0xFF0F172A).copy(alpha = 0.98f)
-    val seamColor = Color(0xFF6B7280).copy(alpha = 0.70f)
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { canvasSize = it }
-    ) {
-        if (canvasSize.width == 0 || canvasSize.height == 0) return@Box
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val bfL = canvasSize.width * overlaySpec.bounds.leftRatio
-            val bfT = canvasSize.height * overlaySpec.bounds.topRatio
-            val bfW = canvasSize.width * overlaySpec.bounds.widthRatio
-            val bfH = canvasSize.height * overlaySpec.bounds.heightRatio
-
-            if (side == "Front" || side == "Back") {
-                drawFittedBoxerBriefs(
-                    mainColor = mainFabric,
-                    panelColor = darkPanel,
-                    waistColor = waistBand,
-                    seamColor = seamColor,
-                    centerX = bfL + bfW * 0.50f,
-                    topY = bfT + bfH * 0.385f,
-                    width = bfW * 0.34f,
-                    height = bfH * 0.205f
-                )
-            }
-        }
-    }
-}
-
-// 正/背面短裤:外侧竖直,两条明显的长方形裤腿,胯下 V 字
-private fun DrawScope.drawShorts(
-    bodyColor: Color,
-    waistColor: Color,
-    centerX: Float,
-    topY: Float,
-    width: Float,
-    height: Float
-) {
-    val x = centerX - width / 2f
-    val y = topY
-    val w = width
-    val h = height
-    val cr = w * 0.10f                     // 顶部圆角
-    val br = w * 0.06f                     // 底部圆角(裤脚口)
-
-    val path = Path().apply {
-        // 顶边(裤腰),从左上圆角开始
-        moveTo(x + cr, y)
-        lineTo(x + w - cr, y)
-        // 右上圆角
-        quadraticBezierTo(x + w, y, x + w, y + cr)
-
-        // 右侧外边: 一路直线下到底
-        lineTo(x + w, y + h - br)
-        // 右下圆角(裤脚口外侧)
-        quadraticBezierTo(x + w, y + h, x + w - br, y + h)
-        // 右腿裤脚底边(向左)
-        lineTo(x + w * 0.56f, y + h)
-        // 右腿内缝直线上到胯部
-        lineTo(x + w * 0.56f, y + h * 0.55f)
-        // 胯下 V 字弧线(连接两腿内缝)
-        quadraticBezierTo(
-            x + w * 0.50f, y + h * 0.42f,
-            x + w * 0.44f, y + h * 0.55f
-        )
-        // 左腿内缝直线下到底
-        lineTo(x + w * 0.44f, y + h)
-        // 左腿裤脚底边(向左)
-        lineTo(x + br, y + h)
-        // 左下圆角
-        quadraticBezierTo(x, y + h, x, y + h - br)
-        // 左侧外边: 直线上到顶
-        lineTo(x, y + cr)
-        quadraticBezierTo(x, y, x + cr, y)
-        close()
-    }
-    drawPath(path, bodyColor)
-
-    // 裤腰高光带(只在裤腰区域,不会跨到 V 字下面)
-    drawRect(
-        color = waistColor,
-        topLeft = Offset(x, y),
-        size = Size(w, h * 0.12f)
-    )
-}
-
-// 侧视图短裤:简化为带圆角的矩形(看不到 V 字)
-private fun DrawScope.drawFittedBoxerBriefs(
-    mainColor: Color,
-    panelColor: Color,
-    waistColor: Color,
-    seamColor: Color,
-    centerX: Float,
-    topY: Float,
-    width: Float,
-    height: Float
-) {
-    val x = centerX - width / 2f
-    val y = topY
-    val w = width
-    val h = height
-
-    val waistH = h * 0.16f
-    val bodyTop = y + waistH
-
-    val bodyPath = Path().apply {
-        moveTo(x + w * 0.04f, bodyTop)
-        cubicTo(
-            x + w * 0.16f, y + h * 0.12f,
-            x + w * 0.84f, y + h * 0.12f,
-            x + w * 0.96f, bodyTop
-        )
-        cubicTo(
-            x + w * 1.02f, y + h * 0.34f,
-            x + w * 0.96f, y + h * 0.72f,
-            x + w * 0.84f, y + h * 0.96f
-        )
-        lineTo(x + w * 0.60f, y + h * 0.96f)
-        cubicTo(
-            x + w * 0.57f, y + h * 0.80f,
-            x + w * 0.55f, y + h * 0.67f,
-            x + w * 0.50f, y + h * 0.57f
-        )
-        cubicTo(
-            x + w * 0.45f, y + h * 0.67f,
-            x + w * 0.43f, y + h * 0.80f,
-            x + w * 0.40f, y + h * 0.96f
-        )
-        lineTo(x + w * 0.16f, y + h * 0.96f)
-        cubicTo(
-            x + w * 0.04f, y + h * 0.72f,
-            x - w * 0.02f, y + h * 0.34f,
-            x + w * 0.04f, bodyTop
-        )
-        close()
-    }
-    drawPath(bodyPath, mainColor)
-
-    val leftPanel = Path().apply {
-        moveTo(x + w * 0.05f, bodyTop)
-        cubicTo(
-            x + w * 0.10f, y + h * 0.34f,
-            x + w * 0.10f, y + h * 0.70f,
-            x + w * 0.16f, y + h * 0.96f
-        )
-        lineTo(x + w * 0.34f, y + h * 0.96f)
-        cubicTo(
-            x + w * 0.30f, y + h * 0.72f,
-            x + w * 0.28f, y + h * 0.40f,
-            x + w * 0.29f, bodyTop
-        )
-        close()
-    }
-    val rightPanel = Path().apply {
-        moveTo(x + w * 0.95f, bodyTop)
-        cubicTo(
-            x + w * 0.90f, y + h * 0.34f,
-            x + w * 0.90f, y + h * 0.70f,
-            x + w * 0.84f, y + h * 0.96f
-        )
-        lineTo(x + w * 0.66f, y + h * 0.96f)
-        cubicTo(
-            x + w * 0.70f, y + h * 0.72f,
-            x + w * 0.72f, y + h * 0.40f,
-            x + w * 0.71f, bodyTop
-        )
-        close()
-    }
-    drawPath(leftPanel, panelColor.copy(alpha = 0.72f))
-    drawPath(rightPanel, panelColor.copy(alpha = 0.72f))
-
-    val pouchPath = Path().apply {
-        moveTo(x + w * 0.43f, bodyTop + h * 0.03f)
-        cubicTo(
-            x + w * 0.46f, y + h * 0.45f,
-            x + w * 0.46f, y + h * 0.62f,
-            x + w * 0.50f, y + h * 0.72f
-        )
-        cubicTo(
-            x + w * 0.54f, y + h * 0.62f,
-            x + w * 0.54f, y + h * 0.45f,
-            x + w * 0.57f, bodyTop + h * 0.03f
-        )
-        close()
-    }
-    drawPath(pouchPath, Color(0xFF4B5563).copy(alpha = 0.42f))
-
-    drawRoundRect(
-        color = waistColor,
-        topLeft = Offset(x, y),
-        size = Size(w, waistH),
-        cornerRadius = CornerRadius(w * 0.08f, w * 0.08f)
-    )
-    drawRect(
-        color = Color.White.copy(alpha = 0.10f),
-        topLeft = Offset(x, y + waistH * 0.18f),
-        size = Size(w, waistH * 0.18f)
-    )
-
-    drawLine(
-        color = seamColor,
-        start = Offset(x + w * 0.50f, bodyTop + h * 0.03f),
-        end = Offset(x + w * 0.50f, y + h * 0.88f),
-        strokeWidth = w * 0.012f
-    )
-    drawLine(
-        color = Color.Black.copy(alpha = 0.22f),
-        start = Offset(x + w * 0.40f, y + h * 0.96f),
-        end = Offset(x + w * 0.50f, y + h * 0.57f),
-        strokeWidth = w * 0.010f
-    )
-    drawLine(
-        color = Color.Black.copy(alpha = 0.22f),
-        start = Offset(x + w * 0.60f, y + h * 0.96f),
-        end = Offset(x + w * 0.50f, y + h * 0.57f),
-        strokeWidth = w * 0.010f
-    )
-}
-
-private fun DrawScope.drawFittedBoxerBriefsSide(
-    mainColor: Color,
-    panelColor: Color,
-    waistColor: Color,
-    centerX: Float,
-    topY: Float,
-    width: Float,
-    height: Float
-) {
-    val x = centerX - width / 2f
-    val y = topY
-    val w = width
-    val h = height
-
-    val waistH = h * 0.16f
-
-    val bodyPath = Path().apply {
-        moveTo(x + w * 0.10f, y + waistH)
-        quadraticBezierTo(x + w * 0.50f, y + h * 0.08f, x + w * 0.90f, y + waistH)
-        cubicTo(x + w * 0.94f, y + h * 0.38f, x + w * 0.86f, y + h * 0.80f, x + w * 0.78f, y + h * 0.96f)
-        lineTo(x + w * 0.22f, y + h * 0.96f)
-        cubicTo(x + w * 0.14f, y + h * 0.80f, x + w * 0.06f, y + h * 0.38f, x + w * 0.10f, y + waistH)
-        close()
-    }
-    drawPath(bodyPath, mainColor)
-
-    drawPath(
-        Path().apply {
-            moveTo(x + w * 0.08f, y + waistH)
-            cubicTo(x + w * 0.18f, y + h * 0.35f, x + w * 0.20f, y + h * 0.75f, x + w * 0.24f, y + h * 0.96f)
-            lineTo(x + w * 0.42f, y + h * 0.96f)
-            cubicTo(x + w * 0.35f, y + h * 0.68f, x + w * 0.33f, y + h * 0.36f, x + w * 0.34f, y + waistH)
-            close()
-        },
-        panelColor.copy(alpha = 0.70f)
-    )
-
-    drawRoundRect(
-        color = waistColor,
-        topLeft = Offset(x, y),
-        size = Size(w, waistH),
-        cornerRadius = CornerRadius(w * 0.12f, w * 0.12f)
-    )
-    drawRect(
-        color = Color.White.copy(alpha = 0.10f),
-        topLeft = Offset(x, y + waistH * 0.18f),
-        size = Size(w, waistH * 0.18f)
-    )
 }
 
 @Composable
@@ -902,13 +665,9 @@ fun DetailScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val useTwoPane = isLandscape && configuration.screenWidthDp >= 720
 
-    var selectedDetails by rememberSaveable(part) { mutableStateOf(emptyList<String>()) }
+    var selectedDetail by rememberSaveable(part) { mutableStateOf("") }
     var symptomText by rememberSaveable(part) { mutableStateOf("") }
     var painLevel by rememberSaveable(part) { mutableFloatStateOf(5f) }
-
-    val selectedAreaLabel = selectedDetails
-        .ifEmpty { listOf(part) }
-        .joinToString(", ")
 
     val bgColor = MaterialTheme.colorScheme.background
     val topGradient = Brush.horizontalGradient(
@@ -934,7 +693,7 @@ fun DetailScreen(
             ) {
                 HeaderCard(
                     title = "Symptom Check",
-                    subtitle = selectedAreaLabel,
+                    subtitle = selectedDetail.ifBlank { part },
                     gradient = topGradient
                 )
 
@@ -950,10 +709,8 @@ fun DetailScreen(
                     ) {
                         DetailAreaCard(
                             detailOptions = detailOptions,
-                            selectedDetails = selectedDetails,
-                            onToggle = { detail ->
-                                selectedDetails = toggleDetailSelection(selectedDetails, detail)
-                            }
+                            selectedDetail = selectedDetail,
+                            onSelect = { selectedDetail = it }
                         )
 
                         PainLevelCard(
@@ -972,7 +729,7 @@ fun DetailScreen(
                             symptomText = symptomText,
                             onSymptomChange = { symptomText = it },
                             onContinue = {
-                                val partEncoded = Uri.encode(selectedAreaLabel)
+                                val partEncoded = Uri.encode(selectedDetail.ifBlank { part })
                                 val symptomEncoded = Uri.encode(symptomText)
                                 navController.navigate("follow_up/$partEncoded/$symptomEncoded/${painLevel.toInt()}")
                             }
@@ -998,16 +755,14 @@ fun DetailScreen(
             ) {
                 HeaderCard(
                     title = "Symptom Check",
-                    subtitle = selectedAreaLabel,
+                    subtitle = selectedDetail.ifBlank { part },
                     gradient = topGradient
                 )
 
                 DetailAreaCard(
                     detailOptions = detailOptions,
-                    selectedDetails = selectedDetails,
-                    onToggle = { detail ->
-                        selectedDetails = toggleDetailSelection(selectedDetails, detail)
-                    }
+                    selectedDetail = selectedDetail,
+                    onSelect = { selectedDetail = it }
                 )
 
                 PainLevelCard(
@@ -1019,7 +774,7 @@ fun DetailScreen(
                     symptomText = symptomText,
                     onSymptomChange = { symptomText = it },
                     onContinue = {
-                        val partEncoded = Uri.encode(selectedAreaLabel)
+                        val partEncoded = Uri.encode(selectedDetail.ifBlank { part })
                         val symptomEncoded = Uri.encode(symptomText)
                         navController.navigate("follow_up/$partEncoded/$symptomEncoded/${painLevel.toInt()}")
                     }
@@ -1036,22 +791,11 @@ fun DetailScreen(
     }
 }
 
-private fun toggleDetailSelection(
-    current: List<String>,
-    detail: String
-): List<String> {
-    return if (current.contains(detail)) {
-        current.filterNot { it == detail }
-    } else {
-        current + detail
-    }
-}
-
 @Composable
 private fun DetailAreaCard(
     detailOptions: List<String>,
-    selectedDetails: List<String>,
-    onToggle: (String) -> Unit
+    selectedDetail: String,
+    onSelect: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1064,20 +808,14 @@ private fun DetailAreaCard(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = "Choose one or more specific areas",
+                text = "Choose a more specific area",
                 style = MaterialTheme.typography.titleMedium
-            )
-
-            Text(
-                text = "You can select multiple details. Tap a selected chip again to remove it.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF667085)
             )
 
             ChipRows(
                 items = detailOptions,
-                selectedItems = selectedDetails.toSet(),
-                onItemClick = onToggle
+                selectedItem = selectedDetail,
+                onItemClick = onSelect
             )
 
             Card(
@@ -1092,17 +830,13 @@ private fun DetailAreaCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Selected Areas",
+                        text = "Selected Area",
                         style = MaterialTheme.typography.labelLarge,
                         color = Color(0xFF667085)
                     )
 
                     Text(
-                        text = if (selectedDetails.isEmpty()) {
-                            "Nothing selected yet"
-                        } else {
-                            selectedDetails.joinToString(", ")
-                        },
+                        text = selectedDetail.ifBlank { "Nothing selected yet" },
                         style = MaterialTheme.typography.titleMedium,
                         color = Color(0xFF1F2937)
                     )
@@ -2235,62 +1969,90 @@ private fun parseGeminiResponse(text: String): ParsedGeminiResponse {
     )
 }
 
-private fun getBodyOverlaySpec(side: String, useTwoPane: Boolean): BodyOverlaySpec {
-    val bounds = if (useTwoPane) {
-        BodyFrameBounds(0.11f, 0.08f, 0.78f, 0.84f)
-    } else {
-        BodyFrameBounds(0.10f, 0.07f, 0.80f, 0.86f)
+private fun getBodyOverlaySpec(
+    side: String,
+    gender: String,
+    useTwoPane: Boolean
+): BodyOverlaySpec {
+    val isFemale = gender == "Female"
+
+    val bounds = when {
+        useTwoPane && isFemale -> BodyFrameBounds(
+            leftRatio = 0.225f,
+            topRatio = 0.1f,
+            widthRatio = 0.550f,
+            heightRatio = 0.805f
+        )
+
+        useTwoPane -> BodyFrameBounds(
+            leftRatio = 0.215f,
+            topRatio = 0.115f,
+            widthRatio = 0.570f,
+            heightRatio = 0.805f
+        )
+
+        isFemale -> BodyFrameBounds(
+            leftRatio = 0.225f,
+            topRatio = 0.115f,
+            widthRatio = 0.550f,
+            heightRatio = 0.805f
+        )
+
+        else -> BodyFrameBounds(
+            leftRatio = 0.215f,
+            topRatio = 0.115f,
+            widthRatio = 0.570f,
+            heightRatio = 0.805f
+        )
     }
 
     val hotspots = when (side) {
         "Front" -> listOf(
-            // head / neck
-            BodyHotspot("Face", 0.50f, 0.000001f, 0.052f),
-            BodyHotspot("Neck", 0.50f, 0.070f, 0.050f),
+            BodyHotspot("Face", 0.500f, 0.045f, 0.052f),
+            BodyHotspot("Neck", 0.500f, 0.135f, 0.050f),
 
-            // shoulders and arms
-            BodyHotspot("Left Arm", 0.065f, 0.155f, 0.048f),
-            BodyHotspot("Right Arm", 0.935f, 0.155f, 0.048f),
+            BodyHotspot("Left Shoulder", 0.325f, 0.205f, 0.050f),
+            BodyHotspot("Right Shoulder", 0.675f, 0.205f, 0.050f),
 
-            BodyHotspot("Left Shoulder", 0.310f, 0.155f, 0.050f),
-            BodyHotspot("Right Shoulder", 0.690f, 0.155f, 0.050f),
+            BodyHotspot("Left Arm", 0.130f, 0.375f, 0.048f),
+            BodyHotspot("Right Arm", 0.870f, 0.375f, 0.048f),
 
-            // chest
-            BodyHotspot("Left Chest", 0.435f, 0.155f, 0.050f),
-            BodyHotspot("Center Chest", 0.500f, 0.155f, 0.050f),
-            BodyHotspot("Right Chest", 0.565f, 0.155f, 0.050f),
+            BodyHotspot("Left Chest", 0.430f, 0.285f, 0.050f),
+            BodyHotspot("Center Chest", 0.500f, 0.285f, 0.050f),
+            BodyHotspot("Right Chest", 0.570f, 0.285f, 0.050f),
 
-            // abdomen / waist
-            BodyHotspot("Left Abdomen", 0.420f, 0.305f, 0.048f),
-            BodyHotspot("Upper Abdomen", 0.500f, 0.305f, 0.050f),
-            BodyHotspot("Right Abdomen", 0.580f, 0.305f, 0.048f),
+            BodyHotspot("Left Abdomen", 0.430f, 0.420f, 0.048f),
+            BodyHotspot("Upper Abdomen", 0.500f, 0.420f, 0.050f),
+            BodyHotspot("Right Abdomen", 0.570f, 0.420f, 0.048f),
 
-            // thighs
-            BodyHotspot("Left Thigh", 0.390f, 0.590f, 0.048f),
-            BodyHotspot("Right Thigh", 0.610f, 0.590f, 0.048f),
+            BodyHotspot("Left Thigh", 0.425f, 0.600f, 0.048f),
+            BodyHotspot("Right Thigh", 0.575f, 0.600f, 0.048f),
 
-            // knees
-            BodyHotspot("Left Knee", 0.405f, 0.715f, 0.046f),
-            BodyHotspot("Right Knee", 0.595f, 0.715f, 0.046f),
+            BodyHotspot("Left Knee", 0.435f, 0.725f, 0.046f),
+            BodyHotspot("Right Knee", 0.565f, 0.725f, 0.046f),
 
-            // lower legs
-            BodyHotspot("Left Shin", 0.405f, 0.855f, 0.044f),
-            BodyHotspot("Right Shin", 0.595f, 0.855f, 0.044f)
+            BodyHotspot("Left Shin", 0.445f, 0.855f, 0.044f),
+            BodyHotspot("Right Shin", 0.555f, 0.855f, 0.044f)
         )
 
         "Back" -> listOf(
-            BodyHotspot("Back Head", 0.50f, 0.000001f, 0.060f),
-            BodyHotspot("Back Neck", 0.50f, 0.07f, 0.055f),
-            BodyHotspot("Left Upper Back", 0.43f, 0.2f, 0.060f),
-            BodyHotspot("Right Upper Back", 0.57f, 0.2f, 0.060f),
-            BodyHotspot("Mid Back", 0.50f, 0.25f, 0.060f),
-            BodyHotspot("Lower Back", 0.50f, 0.30f, 0.060f),
-            BodyHotspot("Left Glute", 0.420f, 0.4f, 0.056f),
-            BodyHotspot("Right Glute", 0.580f, 0.4f, 0.056f),
-            BodyHotspot("Left Hamstring", 0.390f, 0.5f, 0.055f),
-            BodyHotspot("Right Hamstring", 0.610f, 0.5f, 0.055f),
-            BodyHotspot("Left Calf", 0.45f, 0.715f, 0.050f),
-            BodyHotspot("Right Calf", 0.59f, 0.715f, 0.050f)
+            BodyHotspot("Back Head", 0.500f, 0.045f, 0.060f),
+            BodyHotspot("Back Neck", 0.500f, 0.135f, 0.055f),
+
+            BodyHotspot("Left Upper Back", 0.430f, 0.245f, 0.058f),
+            BodyHotspot("Right Upper Back", 0.570f, 0.245f, 0.058f),
+
+            BodyHotspot("Mid Back", 0.500f, 0.335f, 0.058f),
+            BodyHotspot("Lower Back", 0.500f, 0.445f, 0.058f),
+
+            BodyHotspot("Left Glute", 0.430f, 0.535f, 0.056f),
+            BodyHotspot("Right Glute", 0.570f, 0.535f, 0.056f),
+
+            BodyHotspot("Left Hamstring", 0.425f, 0.650f, 0.055f),
+            BodyHotspot("Right Hamstring", 0.575f, 0.650f, 0.055f),
+
+            BodyHotspot("Left Calf", 0.445f, 0.835f, 0.050f),
+            BodyHotspot("Right Calf", 0.555f, 0.835f, 0.050f)
         )
 
         else -> emptyList()
