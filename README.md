@@ -730,11 +730,14 @@ Main contributions included:
 - Implementing the AI symptom-check process
 - Integrating Gemini API logic
 - Improving structured Gemini prompt and response handling
+- Calibrating model size, model position, and hotspot alignment
 - Debugging Firebase Authentication
 - Improving Firebase session behavior
 - Supporting Firestore-based account data
 - Improving Emergency Mode behavior
 - Designing and revising Family Hub data flow
+- Debugging UI, navigation, model alignment, Firebase, and integration issues
+- Finalized README and final presentation
 
 ### Zhi Gao
 
