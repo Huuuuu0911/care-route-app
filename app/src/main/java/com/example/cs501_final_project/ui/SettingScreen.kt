@@ -2,7 +2,6 @@ package com.example.cs501_final_project.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -59,7 +54,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.cs501_final_project.data.AccentThemeOption
 import com.example.cs501_final_project.data.CareRouteViewModel
-import com.example.cs501_final_project.data.FamilyMember
 
 @Composable
 fun SettingScreen(
@@ -68,10 +62,8 @@ fun SettingScreen(
 ) {
     val profile = viewModel.selfProfile
     val settings = viewModel.settings
-    val familyMembers = viewModel.familyMembers
 
     var showEditDialog by rememberSaveable { mutableStateOf(false) }
-    var showAddFamilyDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showEditDialog) {
         var tempName by rememberSaveable(profile.name) { mutableStateOf(profile.name) }
@@ -253,72 +245,6 @@ fun SettingScreen(
         )
     }
 
-    if (showAddFamilyDialog) {
-        var tempFamilyName by rememberSaveable { mutableStateOf("") }
-        var tempRelation by rememberSaveable { mutableStateOf("Family") }
-
-        AlertDialog(
-            onDismissRequest = { showAddFamilyDialog = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (tempFamilyName.isNotBlank()) {
-                            viewModel.createFamilyMember(
-                                name = tempFamilyName.trim(),
-                                relation = tempRelation.trim().ifBlank { "Family" },
-                                birthDate = "",
-                                age = "",
-                                gender = "",
-                                allergies = "",
-                                medications = "",
-                                conditions = "",
-                                notes = ""
-                            )
-                        }
-                        showAddFamilyDialog = false
-                    }
-                ) {
-                    Text("Add")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddFamilyDialog = false }) {
-                    Text("Cancel")
-                }
-            },
-            title = {
-                Text(
-                    text = "Add Family Profile",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = tempFamilyName,
-                        onValueChange = { tempFamilyName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Name") },
-                        placeholder = { Text("Example: Mom") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    OutlinedTextField(
-                        value = tempRelation,
-                        onValueChange = { tempRelation = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Relation") },
-                        placeholder = { Text("Example: Mother") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                }
-            },
-            shape = RoundedCornerShape(28.dp)
-        )
-    }
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -337,14 +263,6 @@ fun SettingScreen(
                 onEditClick = { showEditDialog = true }
             )
 
-            SectionTitle("Family Profiles")
-
-            FamilySection(
-                familyMembers = familyMembers,
-                onAddClick = { showAddFamilyDialog = true },
-                onDeleteClick = { memberId -> viewModel.deleteFamilyMember(memberId) }
-            )
-
             SectionTitle("App Preferences")
 
             PreferencesSection(
@@ -360,7 +278,6 @@ fun SettingScreen(
 
             UsefulLinksSection(
                 profileCompletion = viewModel.profileCompletionScore(),
-                familyCount = familyMembers.size,
                 archiveCount = viewModel.historyRecords.size + viewModel.importedMedicalRecords.size
             )
 
@@ -498,110 +415,6 @@ private fun SectionTitle(
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onBackground
     )
-}
-
-@Composable
-private fun FamilySection(
-    familyMembers: List<FamilyMember>,
-    onAddClick: () -> Unit,
-    onDeleteClick: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, Color(0xFFE7ECF3), RoundedCornerShape(22.dp))
-                .clickable { onAddClick() }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFEFF4FF)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    tint = Color(0xFF2F6BFF)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Add Family Member",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "Create another profile for symptom check",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF667085)
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = Color(0xFF98A2B3)
-            )
-        }
-
-        familyMembers.forEach { member ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, Color(0xFFE7ECF3), RoundedCornerShape(22.dp))
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFFF4F3FF)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Groups,
-                        contentDescription = null,
-                        tint = Color(0xFF6D4BFF)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = member.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = member.relation.ifBlank { "Family" },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF667085)
-                    )
-                }
-
-                TextButton(onClick = { onDeleteClick(member.id) }) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = null,
-                        tint = Color(0xFFD92D20)
-                    )
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -747,7 +560,6 @@ private fun PreferenceRow(
 @Composable
 private fun UsefulLinksSection(
     profileCompletion: Int,
-    familyCount: Int,
     archiveCount: Int
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -755,12 +567,6 @@ private fun UsefulLinksSection(
             icon = Icons.Default.Person,
             title = "Profile Completion",
             subtitle = "$profileCompletion% complete. More details improve triage accuracy."
-        )
-
-        UsefulRow(
-            icon = Icons.Default.Groups,
-            title = "Family Management",
-            subtitle = "You currently have $familyCount saved family profile(s)."
         )
 
         UsefulRow(

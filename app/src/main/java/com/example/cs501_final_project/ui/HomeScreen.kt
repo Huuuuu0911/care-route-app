@@ -3,7 +3,6 @@ package com.example.cs501_final_project.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,12 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.EventNote
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MedicalServices
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material3.Button
@@ -37,8 +34,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -160,7 +155,7 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Daily support, symptom checks, and preventive guidance for you and your family.",
+                    text = "Daily support, symptom checks, and preventive guidance in one place.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color(0xFF667085)
                 )
@@ -172,7 +167,6 @@ fun HomeScreen(
                 onStartClick = onStartClick
             )
 
-            FamilyHubCard(viewModel = viewModel)
 
             if (insightsError != null) {
                 Text(
@@ -309,85 +303,6 @@ private fun HeroCheckCard(
                     contentDescription = null
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun FamilyHubCard(
-    viewModel: CareRouteViewModel
-) {
-    val accent = MaterialTheme.colorScheme.primary
-    val activePatient = viewModel.activePatientContext()
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = "Family Hub",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "Choose who this check is for. Profile details and health history will shape suggestions and follow-up questions.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF667085)
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = viewModel.selectedPersonId == "self",
-                    onClick = { viewModel.selectPerson("self") },
-                    label = { Text(viewModel.selfProfile.name.ifBlank { "You" }) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = accent.copy(alpha = 0.15f),
-                        selectedLabelColor = accent
-                    )
-                )
-
-                viewModel.familyMembers.forEach { member ->
-                    FilterChip(
-                        selected = viewModel.selectedPersonId == member.id,
-                        onClick = { viewModel.selectPerson(member.id) },
-                        label = { Text(member.name) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Groups,
-                                contentDescription = null
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFE8F7EF),
-                            selectedLabelColor = Color(0xFF067647)
-                        )
-                    )
-                }
-            }
-
-            Text(
-                text = "Current profile: ${activePatient.displayName} · ${if (activePatient.group == "Mine") "Personal profile" else "Family member"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF667085)
-            )
         }
     }
 }
@@ -676,7 +591,7 @@ private fun QuickAccessCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Settings,
                     title = "Setting",
-                    subtitle = "Profiles, preferences, and family",
+                    subtitle = "Profile and preferences",
                     accent = Color(0xFFF79009),
                     onClick = onSettingClick
                 )
